@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "hexgeo"
 version = "1.0.0"
-description = "A Python library for making small geographic hexagon grids"
-authors = ["Alex Raichev <e@mail.net>"]
+description = "A Python library for making hexagon grids of small geographic extent"
+authors = ["Alex Raichev <araichev@mrcagney.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
