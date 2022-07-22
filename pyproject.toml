@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "hexgeo"
+version = "1.0.0"
+description = "A Python library for making small geographic hexagon grids"
+authors = ["Alex Raichev <e@mail.net>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+[tool.poetry.dev-dependencies]
+jupyter = "^1.0.0"
+black = "^22.6.0"
+pre-commit = "^2.20.0"
+nbstripout = "^0.5.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
