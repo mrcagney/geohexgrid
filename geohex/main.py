@@ -85,7 +85,7 @@ class Cell:
     Represents a hexagon cell within a HexGridSystem.
     """
 
-    hgs: "HexGridSystem"
+    hgs: HexGridSystem
     a: int  # first axial coordinate of center of cell
     b: int  # second axial coordinate of center of cell
 
