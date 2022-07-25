@@ -19,6 +19,67 @@ Point = collections.namedtuple("Point", ["x", "y"])
 
 
 @dataclass
+class HexGridSystem:
+    """
+    Represents a planar flat-top hexagon grid system in the geographic
+    coordinate reference sytem specified by ``crs``.
+    """
+
+    crs: str  # CRS string acceptable by GeoPandas, e.g. 'epsg:2193' for NZTM
+    x: float  # first Cartesian (CRS) coordinate of system's origin
+    y: float  # second Cartesion (CRS) coordinate of system's origin
+    R: float  # circumradius of the hexagon grid cells in the CRS's distance units
+
+    def cell_from_axial_point(self, a, b) -> "Cell":
+        """
+        Given axial coordinates of a point in the plane, return the cell containing it.
+        """
+        a_round, b_round = round(a), round(b)
+        a, b = a - a_round, b - b_round  # remainders
+        if abs(a) >= abs(b):
+            center = int(a_round + round(a + 0.5 * b)), int(b_round)
+        else:
+            center = int(a_round), int(b_round + round(b + 0.5 * a))
+
+        return Cell(self, center[0], center[1])
+
+    def cell_from_point(self, x, y) -> "Cell":
+        """
+        Given Cartesian coordinates of a point in the plane, return the cell containing
+        it.
+        """
+        return self.cell_from_axial_point(*cartesian_to_axial(x, y, self.R))
+
+    def cells_from_bbox(self, minx, miny, maxx, maxy, *, as_gdf=False) -> list["Cell"]:
+        ll = self.cell_from_point(minx, miny)
+        lr = self.cell_from_point(maxy, miny)
+        ul = self.cell_from_point(minx, maxy)
+        ur = self.cell_from_point(maxx, maxy)
+        # Bottom row
+        mina = min(ll.a, ul.a)
+        minb = min(ll.b, lr.b)
+        maxa = max(lr.a, ur.a)
+        maxb = max(ul.b, ur.b)
+
+        result = [
+            self.cell_from_axial_point(i, j)
+            for i in range(mina, maxa + 1)
+            for j in range(minb, maxb + 1)
+        ]
+        if as_gdf:
+            result = gpd.GeoDataFrame(
+                data={"cell_id": [cell.id for cell in result]},
+                geometry=[cell.polygon() for cell in result],
+                crs=self.crs,
+            )
+
+        return result
+
+    def cells_from_gdf(self, gdf: gpd.GeoDataFrame) -> list["Cell"]:
+        pass
+
+
+@dataclass
 class Cell:
     """
     Represents a hexagon cell within a HexGridSystem.
@@ -50,65 +111,15 @@ class Cell:
         return sg.Polygon(self.vertices() + self.vertices()[:1])
 
 
-@dataclass
-class HexGridSystem:
+def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     """
-    Represents a planar flat-top hexagon grid system in the geographic
-    coordinate reference sytem specified by ``crs``.
+    Given axial coordinates of a point in the plane relative to a flat-top hexagonal
+    grid centered at the origin with hexagon circumradius ``R``,
+    return its Cartesian coordinates.
+
+    For more details on axial coordinates see [RBG]_.
     """
-
-    crs: str  # CRS string acceptable to GeoPandas, e.g. 'epsg:2193' for NZTM
-    x: float  # first Cartesian (CRS) coordinate of system origin
-    y: float  # second Cartesion (CRS) coordinate of system origin
-    R: float  # circumradius of the hexagon grid cells in the CRS's distance units
-
-    def cell_from_axial_point(self, a, b) -> Cell:
-        """
-        Given axial coordinates of a point in the plane, return the cell containing it.
-        """
-        a_round, b_round = round(a), round(b)
-        a, b = a - a_round, b - b_round  # remainders
-        if abs(a) >= abs(b):
-            center = int(a_round + round(a + 0.5 * b)), int(b_round)
-        else:
-            center = int(a_round), int(b_round + round(b + 0.5 * a))
-
-        return Cell(self, center[0], center[1])
-
-    def cell_from_point(self, x, y) -> Cell:
-        """
-        Given Cartesian coordinates of a point in the plane, return the cell containing
-        it.
-        """
-        return self.cell_from_axial_point(*cartesian_to_axial(x, y, self.R))
-
-    def cells_from_bbox(self, minx, miny, maxx, maxy, *, as_gdf=False) -> list[Cell]:
-        ll = self.cell_from_point(minx, miny)
-        lr = self.cell_from_point(maxy, miny)
-        ul = self.cell_from_point(minx, maxy)
-        ur = self.cell_from_point(maxx, maxy)
-        # Bottom row
-        mina = min(ll.a, ul.a)
-        minb = min(ll.b, lr.b)
-        maxa = max(lr.a, ur.a)
-        maxb = max(ul.b, ur.b)
-
-        result = [
-            self.cell_from_axial_point(i, j)
-            for i in range(mina, maxa + 1)
-            for j in range(minb, maxb + 1)
-        ]
-        if as_gdf:
-            result = gpd.GeoDataFrame(
-                data={"cell_id": [cell.id for cell in result]},
-                geometry=[cell.polygon() for cell in result],
-                crs=self.crs,
-            )
-
-        return result
-
-    def cells_from_gdf(self, gdf: gpd.GeoDataFrame) -> list[Cell]:
-        pass
+    return (R * (3 / 2) * a, R * ((sqrt(3) / 2) * a + sqrt(3) * b))
 
 
 def cartesian_to_axial(x: float, y: float, R: float) -> tuple[float]:
@@ -120,17 +131,6 @@ def cartesian_to_axial(x: float, y: float, R: float) -> tuple[float]:
     For more details on axial coordinates see [RBG]_.
     """
     return (2 / 3) * x / R, (-x / 3 + (sqrt(3) / 3) * y) / R
-
-
-def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
-    """
-    Given axial coordinates of a point in the plane relative to a flat-top hexagonal
-    grid centered at the origin with hexagon circumradius ``R``,
-    return its Cartesian coordinates.
-
-    For more details on axial coordinates see [RBG]_.
-    """
-    return (R * (3 / 2) * a, R * ((sqrt(3) / 2) * a + sqrt(3) * b))
 
 
 def hexagon_vertex(x: float, y: float, R: float, i: int) -> tuple[float]:
