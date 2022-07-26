@@ -51,21 +51,18 @@ class HexGridSystem:
         return self.cell_from_axial_point(*cartesian_to_axial(x, y, self.R))
 
     def cells_from_bbox(self, minx, miny, maxx, maxy, *, as_gdf=False) -> list["Cell"]:
+        """
+        See e.g. https://stackoverflow.com/a/33274145
+        """
         ll = self.cell_from_point(minx, miny)
-        lr = self.cell_from_point(maxy, miny)
-        ul = self.cell_from_point(minx, maxy)
-        ur = self.cell_from_point(maxx, maxy)
-        # Bottom row
-        mina = min(ll.a, ul.a)
-        minb = min(ll.b, lr.b)
-        maxa = max(lr.a, ur.a)
-        maxb = max(ul.b, ur.b)
-
+        lr = self.cell_from_point(maxx, miny)
+        # Cover from left to right and bottom to top
         result = [
-            self.cell_from_axial_point(i, j)
-            for i in range(mina, maxa + 1)
-            for j in range(minb, maxb + 1)
+            self.cell_from_axial_point(i, ll.b + j + (-1) ** j)
+            for i in range(ll.a, lr.a + 1)
+            for j in range(0, ll.b - lr.b + 1)
         ]
+
         if as_gdf:
             result = gpd.GeoDataFrame(
                 data={"cell_id": [cell.id for cell in result]},
@@ -94,15 +91,18 @@ class Cell:
         self.R = self.hgs.R  # circumradius
         self.id = f"{self.a},{self.b}"
 
-    def center(self) -> Point:
+    def axial_center(self) -> tuple[int]:
+        return self.a, self.b
+
+    def center(self) -> tuple[float]:
         """
         Return the Cartesian center of this cell (relative to the CRS).
         """
-        return Point(*axial_to_cartesian(self.a, self.b, self.R))
+        return axial_to_cartesian(self.a, self.b, self.R)
 
     def vertices(self) -> list[tuple[float]]:
-        c = self.center()
-        return [hexagon_vertex(c.x, c.y, self.R, i) for i in range(6)]
+        x, y = self.center()
+        return [hexagon_vertex(x, y, self.R, i) for i in range(6)]
 
     def polygon(self) -> sg.Polygon:
         """
@@ -149,12 +149,3 @@ def hexagon_vertex(x: float, y: float, R: float, i: int) -> tuple[float]:
     """
     θ = i * pi / 3
     return x + R * cos(θ), y + R * sin(θ)
-
-
-def cartesian_point_to_cell_name(x: float, y: float, R: float) -> tuple[int]:
-    """
-    Given Cartesian coordinates of a point in the plane, return the (integer) axial
-    coordinates of the center of the flat-top hexagonal cell containing it relative
-    to a hexagon grid of circumradius R.
-    """
-    return
