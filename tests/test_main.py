@@ -1,3 +1,5 @@
+import pytest
+
 from .context import geohex
 from geohex import *
 
@@ -7,6 +9,7 @@ import numpy as np
 hgs = HexGridSystem("epsg:2193", 0, 0, 50)
 
 
+# Test helper functions
 def test_axial_to_cartesian():
     get = axial_to_cartesian(0, 0, 5)
     expect = (0, 0)
@@ -36,6 +39,7 @@ def test_hexagon_vertex():
     assert np.allclose(hexagon_vertex(0, 0, R, 3), (-R, 0))
 
 
+# Test Cell methods
 def test_center():
     assert Cell(hgs, 0, 0).center() == (0, 0)
 
@@ -52,6 +56,19 @@ def test_polygon():
     assert np.allclose(p.area, 3 * sqrt(3) / 2 * hgs.R**2)
 
 
+def test_neighbour():
+    c = Cell(hgs, 0, 0)
+    assert c.neighbour(2) == c.neighbour(-4)
+    assert c.neighbour(0) == c.neighbour("ru")
+    assert len(set(c.neighbor(i) for i in range(6))) == 6
+
+    with pytest.raises(ValueError):
+        c.neighbour("fail")
+    with pytest.raises(ValueError):
+        c.neighbour(0.8)
+
+
+# Test HexGridSystem methods
 def test_cell_from_axial_point():
     c = hgs.cell_from_axial_point(0.51, 0.1)
     assert isinstance(c, Cell)
@@ -69,9 +86,9 @@ def test_cells_from_bbox():
     R = hgs.R
 
     # One cell
-    cells = hgs.cells_from_bbox(0, 0, R / 2, R / 2)
-    assert [c.axial_center() for c in cells] == [(0, 0)]
+    cells = hgs.cells_from_bbox(0, 0, 0.1 * R, 0.1 * R)
+    assert [c.center_axial() for c in cells] == [(0, 0)]
 
     # Several cells
-    cells = hgs.cells_from_bbox(0, -0.1 * R, 1.1 * R, 0.25 * R)
-    assert set(c.axial_center() for c in cells) == {(0, 0), (1, 0), (1, -1)}
+    cells = hgs.cells_from_bbox(-0.1 * R, -0.1 * R, 0.1 * R, R)
+    assert set(c.center_axial() for c in cells) == {(0, 0), (0, 1)}
