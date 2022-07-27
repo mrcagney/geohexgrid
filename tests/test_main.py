@@ -82,13 +82,41 @@ def test_cell_from_point():
     assert (c.a, c.b) == (1, -1)
 
 
-def test_cells_from_bbox():
+def test_grid_from_bbox():
     R = hgs.R
 
     # One cell
-    cells = hgs.cells_from_bbox(0, 0, 0.1 * R, 0.1 * R)
-    assert [c.center_axial() for c in cells] == [(0, 0)]
+    grid = hgs.grid_from_bbox(0, 0, 0.1 * R, 0.1 * R)
+    assert [c.center_axial() for c in grid] == [(0, 0)]
 
-    # Several cells
-    cells = hgs.cells_from_bbox(-0.1 * R, -0.1 * R, 0.1 * R, R)
-    assert set(c.center_axial() for c in cells) == {(0, 0), (0, 1)}
+    # Several grid
+    grid = hgs.grid_from_bbox(-0.1 * R, -0.1 * R, 0.1 * R, R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (0, 1)}
+
+    grid = hgs.grid_from_bbox(0, 0, 1.1 * R, 0.1 * R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0)}
+
+    grid = hgs.grid_from_bbox(0, 0, R, R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (0, 1)}
+
+    grid = hgs.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (1, -1)}
+
+    grid = hgs.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (1, -1)}
+
+    grid = hgs.grid_from_bbox(0, -0.1 * R, R, R)
+    assert set(c.center_axial() for c in grid) == {(1, -1), (0, 0), (1, 0), (0, 1)}
+
+    grid = hgs.grid_from_bbox(-R, 0, R, R)
+    assert set(c.center_axial() for c in grid) == {(0, 0), (-1, 1), (1, 0), (0, 1)}
+
+    grid = hgs.grid_from_bbox(-R, -0.1 * R, R, R)
+    assert set(c.center_axial() for c in grid) == {
+        (0, 0),
+        (-1, 1),
+        (1, 0),
+        (0, 1),
+        (-1, 0),
+        (1, -1),
+    }

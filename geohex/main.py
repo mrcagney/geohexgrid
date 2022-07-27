@@ -50,13 +50,12 @@ class HexGridSystem:
         """
         return self.cell_from_axial_point(*cartesian_to_axial(x, y, self.R))
 
-    def cells_from_bbox(self, minx, miny, maxx, maxy, *, as_gdf=False) -> list["Cell"]:
+    # TODO: optimize and comment
+    def grid_from_bbox(self, minx, miny, maxx, maxy, *, as_gdf=False) -> list["Cell"]:
         """
-        See e.g. https://stackoverflow.com/a/33274145
+        Return a minimal cell cover for the bounding box with the given extrema.
         """
         ld = self.cell_from_point(minx, miny)
-        rd = self.cell_from_point(maxx, miny)
-        lu = self.cell_from_point(minx, maxy)
         ru = self.cell_from_point(maxx, maxy)
 
         ld_x, ld_y = ld.center()
@@ -67,30 +66,30 @@ class HexGridSystem:
         ru_p, ru_q = ru.center_double()
 
         # Get min and max horizontal coordinates
-        if (ld_x - minx) > self.R / 2 and ld != lu:
+        if (ld_x - minx) > self.R / 2 and ld_q != ru_q:
             minp = ld_p - 1
         else:
             minp = ld_p
-        if (maxx - ru_x) > self.R / 2 and rd != ru:
+        if (maxx - ru_x) > self.R / 2 and ld_q != ru_q:
             maxp = ru_p + 1
         else:
             maxp = ru_p
 
         # Get min and max vertical coordinates
-        if miny < ld_y and ld != rd:
+        if miny < ld_y and ld_p != ru_p:
             minq = ld_q - 1
         else:
             minq = ld_q
-        if maxy > ru_y and ru != lu:
+        if maxy > ru_y and ld_p != ru_p:
             maxq = ru_q + 1
         else:
             maxq = ru_q
 
-        print(ld_x, ld_y, ru_x, ru_y)
-        print(minp, minq, maxp, maxq)
-
         # Make cover
         def make_row(start_cell):
+            """
+            Row could be empty.
+            """
             row = []
             c = start_cell
             while c.center_double()[0] <= maxp:
@@ -103,6 +102,8 @@ class HexGridSystem:
             # Fill row below ld
             row = make_row(ld.neighbour("rd"))
             cover.extend(row)
+
+        # Set how to zig-zag to up neighbour
         if minp < ld_p:
             d = {0: "lu", 1: "ru"}
         else:
@@ -111,10 +112,11 @@ class HexGridSystem:
         i = 0
         c = ld
         while c.center_double()[1] <= maxq:
-            row = make_row(c)
+            row = make_row(c)  # Could be empty
             cover.extend(row)
+            # Get up neighbour
+            c = c.neighbour(d[i % 2])
             i += 1
-            c = row[0].neighbour(d[i % 2])
 
         if as_gdf:
             cover = gpd.GeoDataFrame(
@@ -125,7 +127,7 @@ class HexGridSystem:
 
         return cover
 
-    def cells_from_gdf(self, gdf: gpd.GeoDataFrame) -> list["Cell"]:
+    def grid_from_gdf(self, gdf: gpd.GeoDataFrame, *, clip=False) -> list["Cell"]:
         pass
 
 
