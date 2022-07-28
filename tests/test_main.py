@@ -1,12 +1,11 @@
-import pytest
-
-from .context import geohex
-from geohex import *
-
+import plum
 import numpy as np
 
+from .context import geohex, pytest, DATA_DIR
+from geohex import *
 
-hgs = HexGridSystem("epsg:2193", 0, 0, 50)
+
+GHS = GeoHexSystem("epsg:2193", 50, 0, 0)
 
 
 # Test helper functions
@@ -41,78 +40,81 @@ def test_hexagon_vertex():
 
 # Test Cell methods
 def test_center():
-    assert Cell(hgs, 0, 0).center() == (0, 0)
+    assert Cell(GHS, 0, 0).center() == (0, 0)
 
 
 def test_vertices():
-    v = Cell(hgs, 0, 0).vertices()
+    v = Cell(GHS, 0, 0).vertices()
     assert len(set(v)) == 6
 
 
 def test_polygon():
-    p = Cell(hgs, 1, 2).polygon()
+    p = Cell(GHS, 1, 2).polygon()
     assert isinstance(p, sg.Polygon)
     # Polygon should have correct area
-    assert np.allclose(p.area, 3 * sqrt(3) / 2 * hgs.R**2)
+    assert np.allclose(p.area, 3 * sqrt(3) / 2 * GHS.R**2)
 
 
 def test_neighbour():
-    c = Cell(hgs, 0, 0)
+    c = Cell(GHS, 0, 0)
     assert c.neighbour(2) == c.neighbour(-4)
     assert c.neighbour(0) == c.neighbour("ru")
     assert len(set(c.neighbor(i) for i in range(6))) == 6
 
     with pytest.raises(ValueError):
         c.neighbour("fail")
-    with pytest.raises(ValueError):
+    with pytest.raises(plum.function.NotFoundLookupError):
         c.neighbour(0.8)
 
 
-# Test HexGridSystem methods
+# Test GeoHexSystem methods
 def test_cell_from_axial_point():
-    c = hgs.cell_from_axial_point(0.51, 0.1)
+    c = GHS.cell_from_axial_point(0.51, 0.1)
     assert isinstance(c, Cell)
     assert (c.a, c.b) == (1, 0)
 
 
 def test_cell_from_point():
-    R = hgs.R
-    c = hgs.cell_from_point(1.1 * R, -0.1 * R)
+    R = GHS.R
+    c = GHS.cell_from_point(1.1 * R, -0.1 * R)
     assert isinstance(c, Cell)
     assert (c.a, c.b) == (1, -1)
 
 
 def test_grid_from_bbox():
-    R = hgs.R
+    R = GHS.R
 
     # One cell
-    grid = hgs.grid_from_bbox(0, 0, 0.1 * R, 0.1 * R)
+    grid = GHS.grid_from_bbox(0, 0, 0, 0, as_gdf=False)
+    assert [c.center_axial() for c in grid] == [(0, 0)]
+
+    grid = GHS.grid_from_bbox(0, 0, 0.1 * R, 0.1 * R, as_gdf=False)
     assert [c.center_axial() for c in grid] == [(0, 0)]
 
     # Several grid
-    grid = hgs.grid_from_bbox(-0.1 * R, -0.1 * R, 0.1 * R, R)
+    grid = GHS.grid_from_bbox(-0.1 * R, -0.1 * R, 0.1 * R, R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (0, 1)}
 
-    grid = hgs.grid_from_bbox(0, 0, 1.1 * R, 0.1 * R)
+    grid = GHS.grid_from_bbox(0, 0, 1.1 * R, 0.1 * R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0)}
 
-    grid = hgs.grid_from_bbox(0, 0, R, R)
+    grid = GHS.grid_from_bbox(0, 0, R, R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (0, 1)}
 
-    grid = hgs.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R)
+    grid = GHS.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (1, -1)}
 
-    grid = hgs.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R)
+    grid = GHS.grid_from_bbox(0, -0.1 * R, 1.1 * R, 0.1 * R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (1, 0), (1, -1)}
 
-    grid = hgs.grid_from_bbox(0, -0.1 * R, R, R)
+    grid = GHS.grid_from_bbox(0, -0.1 * R, R, R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(1, -1), (0, 0), (1, 0), (0, 1)}
 
-    grid = hgs.grid_from_bbox(-R, 0, R, R)
+    grid = GHS.grid_from_bbox(-R, 0, R, R, as_gdf=False)
     assert set(c.center_axial() for c in grid) == {(0, 0), (-1, 1), (1, 0), (0, 1)}
 
-    grid = hgs.grid_from_bbox(-R, -0.1 * R, R, R)
-    assert set(c.center_axial() for c in grid) == {
+    grid0 = GHS.grid_from_bbox(-R, -0.1 * R, R, R, as_gdf=False)
+    assert set(c.center_axial() for c in grid0) == {
         (0, 0),
         (-1, 1),
         (1, 0),
@@ -120,3 +122,36 @@ def test_grid_from_bbox():
         (-1, 0),
         (1, -1),
     }
+
+    grid1 = GHS.grid_from_bbox(-R, -0.1 * R, R, R, as_gdf=True)
+    assert grid1.crs == GHS.crs
+    assert set(grid1.columns) == {"cell_id", "geometry"}
+    assert set(grid1.cell_id) == set(c.id() for c in grid0)
+
+
+def test_grid_from_gdf():
+    ghs = GeoHexSystem("epsg:2193", 250, 0, 0)
+
+    shapes = gpd.read_file(DATA_DIR / "shapes.geojson")
+
+    grid = ghs.grid_from_gdf(shapes, as_gdf=False)
+    assert isinstance(grid[0], Cell)
+
+    grid1 = ghs.grid_from_gdf(shapes, as_gdf=True)
+    assert grid1.crs == ghs.crs
+    assert set(grid1.columns) == {"cell_id", "geometry"}
+
+    grid2 = ghs.grid_from_gdf(shapes, as_gdf=True, intersect=True)
+    assert grid2.crs == ghs.crs
+    assert grid2.shape[0] <= grid1.shape[0]
+
+
+def test_geohexgrid():
+    shapes = gpd.read_file(DATA_DIR / "shapes.geojson")
+
+    grid1 = geohexgrid(shapes, 0.01)
+    assert grid1.crs == shapes.crs
+
+    grid2 = geohexgrid(shapes, 0.01, intersect=True)
+    assert grid2.crs == shapes.crs
+    assert grid2.shape[0] <= grid1.shape[0]
