@@ -1,0 +1,435 @@
+from typing import Optional
+from dataclasses import dataclass
+from math import sqrt, sin, cos, pi
+
+import pyproj
+import geopandas as gpd
+import shapely.geometry as sg
+import plum
+
+
+@dataclass(frozen=True)
+class GeoHexSystem:
+    """
+    Represents a flat-top hexagon grid system of circumradius ``R`` in the Cartesian
+    plane defined by the two axes of the geographic coordinate reference system (CRS)
+    ``crs`` and with central hexagon cell centered at the point ``(x, y)``.
+    Cell IDs are derived from the axial coordinates of the cell's center.
+
+    For example, ``GeoHexSystem("epsg:2193", 250, 500, 1755147,  5921401)`` creates
+    a hexagon grid system in New Zealand Transverse Mercator coordinates with
+    hexagons of circumradius 250 metres and central hexagon centered in central Auckland.
+
+    For example, ``GeoHexSystem("epsg:4326", 0.001, 174.74, -36.840556)`` creates
+    a hexagon grid system in WGS84 coordinates with hexagons of circumradius 0.001
+    decimal degrees and central hexagon centered in central Auckland.
+
+    If you want your hexagon grid system to faithfully represent hexagons on the ground
+    in your area, then choose a mostly distance- and area-preserving projection CRS,
+    such as NZTM when analysing New Zealand.
+
+    To actually make a grid with this grid system, see e.g. the method
+    :meth:`grid_from_gdf`.
+
+    For more about hexagon grids independent of geography, see the excellent website
+    [RBG]_.
+
+    REFERENCES::
+
+    .. [RBG] Hexagonal Grids, https://www.redblobgames.com/grids/hexagons
+
+    """
+
+    crs: str
+    R: float
+    x: float
+    y: float
+
+    @staticmethod
+    def validate(ghs: "GeoHexSystem") -> "GeoHexSystem":
+        """
+        Return the given GeoHexSystem if it is valid.
+        Otherwise, raise a ValueError.
+        """
+        try:
+            pyproj.CRS.from_user_input(ghs.crs)
+        except Exception:
+            raise ValueError(f"Invalid CRS {ghs.crs}")
+
+        if ghs.R <= 0:
+            raise ValueError(f"Circumradius must be positive but received R={ghs.R}")
+
+        return ghs
+
+    def __post_init__(self):
+        GeoHexSystem.validate(self)
+
+    def cell_from_id(self, cell_id: str) -> "Cell":
+        """
+        Given the ID of a Cell in this GeoHexSystem, as defined by the method
+        :meth:`Cell.id`, return the corresponding Cell.
+        """
+        a, b = cell_id.split(",")
+        return Cell(self, int(a), int(b))
+
+    def cell_from_axial_point(self, a: float, b: float) -> "Cell":
+        """
+        Given axial coordinates of a point in the plane, return the Cell containing it.
+        """
+        a_round, b_round = round(a), round(b)
+        a, b = a - a_round, b - b_round  # remainders
+        if abs(a) >= abs(b):
+            center = int(a_round + round(a + 0.5 * b)), int(b_round)
+        else:
+            center = int(a_round), int(b_round + round(b + 0.5 * a))
+
+        return Cell(self, center[0], center[1])
+
+    def cell_from_point(self, x, y) -> "Cell":
+        """
+        Given Cartesian coordinates of a point in the plane,
+        return the Cell containing it.
+        """
+        return self.cell_from_axial_point(*cartesian_to_axial(x, y, self.R))
+
+    def grid_from_bbox(
+        self,
+        minx: float,
+        miny: float,
+        maxx: float,
+        maxy: float,
+        *,
+        as_gdf: bool = True,
+    ) -> list["Cell"] | gpd.GeoDataFrame:
+        """
+        Return a minimal set of Cells that covers the given Cartesian bounding box
+        (relative to the CRS of this GeoHexSystem).
+        If ``as_gdf``, then return the resulting grid as a GeoDataFrame in the CRS of
+        this HexGridStystem, with a ``cell_id`` column.
+        """
+        # Get the two Cells containing the left-down and right-up corner points of the
+        # bounding box
+        ld = self.cell_from_point(minx, miny)
+        ru = self.cell_from_point(maxx, maxy)
+
+        ld_x, ld_y = ld.center()
+        ru_x, ru_y = ru.center()
+
+        # Think in terms of the double coordinate system for hexagons (see [RBG]_)
+        # and make the cell cover from left to right (rows) and bottom to top (columns).
+        ld_p, ld_q = ld.center_double()
+        ru_p, ru_q = ru.center_double()
+
+        # Get horizontal extrema as double coordinate values
+        if (ld_x - minx) > self.R / 2 and ld_q != ru_q:
+            minp = ld_p - 1
+        else:
+            minp = ld_p
+        if (maxx - ru_x) > self.R / 2 and ld_q != ru_q:
+            maxp = ru_p + 1
+        else:
+            maxp = ru_p
+
+        # Get vertical extrema as double coordinate values
+        if miny < ld_y and ld_p != ru_p:
+            minq = ld_q - 1
+        else:
+            minq = ld_q
+        if maxy > ru_y and ld_p != ru_p:
+            maxq = ru_q + 1
+        else:
+            maxq = ru_q
+
+        # Make cover
+        def make_row(c: "Cell") -> list["Cell"]:
+            """
+            Make the (double coordinates) row of cells occupied by the given cell.
+            Could be an empty list.
+            """
+            row = []
+            while c.center_double()[0] <= maxp:
+                row.append(c)
+                # Get next cell of row
+                c = c.neighbour("ru").neighbour("rd")
+            return row
+
+        cover = []
+        # Set how to get from the start of one row to the start of the row above:
+        # zig-zag or zag-zig
+        if minp < ld_p:
+            d = {0: "lu", 1: "ru"}
+        else:
+            d = {0: "ru", 1: "lu"}
+
+        if minq < ld_q:
+            # The bottom row lies below cell ld, so build that row first
+            row = make_row(ld.neighbour("rd"))
+            cover.extend(row)
+
+        # Build rest of rows, working our way upwards
+        i = 0
+        c = ld
+        while c.center_double()[1] <= maxq:
+            row = make_row(c)  # Could be empty
+            cover.extend(row)
+            # Get start cell of next row up
+            c = c.neighbour(d[i % 2])
+            i += 1
+
+        if as_gdf:
+            cover = gpd.GeoDataFrame(
+                data={"cell_id": [cell.id() for cell in cover]},
+                geometry=[cell.polygon() for cell in cover],
+                crs=self.crs,
+            )
+
+        return cover
+
+    def grid_from_gdf(
+        self, g: gpd.GeoDataFrame, *, as_gdf=True, intersect=False
+    ) -> list["Cell"] | gpd.GeoDataFrame:
+        """
+        Return a minimal set of Cells that covers the bounding box (total bounds) of the
+        given GeoDataFrame whose CRS matches that of this GeoHexSystem.
+        If ``as_gdf``, then return the resulting grid as a GeoDataFrame in the CRS of
+        this GeoHexSystem, with a ``cell_id`` column.
+        If ``intersect``, then only keep the cells that cover the features of
+        the GeoDataFrame, which can be much fewer than cover its bounding box.
+        """
+        g = g.to_crs(self.crs)
+        if intersect:
+            grid = (
+                self.grid_from_bbox(*g.total_bounds, as_gdf=True)
+                .sjoin(g)
+                .filter(["cell_id", "geometry"])
+            )
+            if not as_gdf:
+                grid = [
+                    Cell(self, int(a), int(b)) for a, b in grid.cell_id.str.split(",")
+                ]
+        else:
+            grid = self.grid_from_bbox(*g.total_bounds, as_gdf=as_gdf)
+
+        return grid
+
+
+def geohexgrid(
+    g: gpd.GeoDataFrame,
+    R: float,
+    x: Optional[float] = None,
+    y: Optional[float] = None,
+    *,
+    intersect: bool = False,
+) -> gpd.GeoDataFrame:
+    """
+    Return a GeoDataFrame containing a minimal set of flat-top hexagons with
+    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame ``g``.
+    Optionally, center the grid at point ``(x, y)``, which defaults to the bottom left
+    corner of ``g``'s bounding box.
+
+    The hexagons will lie in the plane of ``g``'s CRS and will use its distance units,
+    e.g. metres for the New Zealand Transverse Mercator (NZTM) CRS
+    and decimal degrees for the WGS84 CRS.
+
+    If ``intersect``, then return only the hexagons that intersects the ``g``'s
+    features.
+    Be warned that this option computes a spatial join, which can slow things down
+    if the number of hexagons is large and the feature set detailed.
+    In that case, install PyGeos for a speed up or simplify the features beforehand.
+
+    EXAMPLE::
+
+        # Load some New Zealand features and set the CRS to NZTM
+        g = gpd.read_file(my_path).to_crs("epsg:2193")
+
+        # Make a hex grid of 250 metre circumradius and keep only the portion
+        # that intersects the features of ``g``
+        grid = grid(g, 250, intersect=True)
+
+    """
+    if x is None or y is None:
+        x, __, y, __ = g.total_bounds
+
+    return GeoHexSystem(g.crs, R, x, y).grid_from_gdf(g, intersect=intersect)
+
+
+@dataclass(frozen=True)
+class Cell:
+    """
+    Represents a flat-top hexagon cell within GeoHexSystem ``ghs`` and centered at
+    axial coordinates ``(a, b)``.
+
+    For an explanation of axial coordinates, double coordinates, etc. of hexagon grids,
+    see [RBG]_.
+    """
+
+    ghs: GeoHexSystem
+    a: int
+    b: int
+
+    def id(self) -> str:
+        """
+        Return the (integer) axial coordinates of the center of this Cell in string
+        form as a unique identifier for this Cell within the GeoHexSystem
+        (but not unique across GeoHexSystems).
+        """
+        return f"{self.a},{self.b}"
+
+    def center_axial(self) -> tuple[int]:
+        """
+        Return the center of this Cell in axial coordinates.
+        """
+        return self.a, self.b
+
+    def center_double(self) -> tuple[int]:
+        """
+        Return the center of this Cell in double coordinates.
+        """
+        return axial_to_double(self.a, self.b)
+
+    def center(self) -> tuple[float]:
+        """
+        Return the center of this Cell in Cartesian coordinates, that is,
+        the coordinates of the CRS of the GeoHexSystem of this Cell.
+        """
+        return axial_to_cartesian(self.a, self.b, self.ghs.R)
+
+    def vertices(self) -> list[tuple[float]]:
+        """
+        Return the vertices of this Cell in the anticlockwise order pictured here::
+
+               2   1
+
+            3         0
+
+               4   5
+
+        """
+        x, y = self.center()
+        return [hexagon_vertex(x, y, self.ghs.R, i) for i in range(6)]
+
+    def polygon(self) -> sg.Polygon:
+        """
+        Return this Cell's Polygon with respect to the CRS of the GeoHexSystem of the
+        Cell.
+        """
+        return sg.Polygon(self.vertices() + self.vertices()[:1])
+
+    @plum.dispatch
+    def neighbour(self, direction: str) -> "Cell":
+        """
+        Return this Cell's neighbour Cell in the given direction, which must be one of
+        the strings 'ru', 'u', 'lu', 'lu', 'd', 'rd' whose meanings are diagramed
+        here with this Cell in the center::
+
+                u
+            lu     ru
+                .
+            ld     rd
+                d
+
+        Raise a ValueError when given an invalid direction.
+        """
+        a, b = self.a, self.b
+        d = {
+            "ru": (a + 1, b),
+            "u": (a, b + 1),
+            "lu": (a - 1, b + 1),
+            "ld": (a - 1, b),
+            "d": (a, b - 1),
+            "rd": (a + 1, b - 1),
+        }
+        try:
+            return Cell(self.ghs, *d[direction])
+        except Exception:
+            raise ValueError(f"Invalid direction {direction}")
+
+    @plum.dispatch
+    def neighbour(self, direction: int) -> "Cell":
+        """
+        Return this Cell's neighbour in the given integer direction, which is
+        interpreted according to this diagram with this Cell in the center::
+
+                1
+            2       0
+                .
+            3       5
+                4
+
+        Take the direction modulo 6 to allow for any integer input.
+        Raise a plum.function.NotFoundLookupError when given an invalid direction.
+        """
+        d = {
+            0: "ru",
+            1: "u",
+            2: "lu",
+            3: "ld",
+            4: "d",
+            5: "rd",
+        }
+        return self.neighbour(d[direction % 6])
+
+    def neighbor(self, direction: str | int) -> "Cell":
+        """
+        Alias of :method:`neighbour` for the American English spellers.
+        """
+        return self.neighbour(direction)
+
+
+# ---------
+# Helpers
+# ---------
+def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
+    """
+    Given axial coordinates of a point in the plane relative to a flat-top hexagonal
+    grid centered at the origin with hexagon circumradius ``R``,
+    return its Cartesian coordinates.
+
+    For more details on axial coordinates see [RBG]_.
+    """
+    return (R * (3 / 2) * a, R * ((sqrt(3) / 2) * a + sqrt(3) * b))
+
+
+def axial_to_double(a: float, b: float) -> tuple[float]:
+    """
+    Given axial coordinates of a point in the plane relative to a flat-top hexagonal
+    grid centered at the origin, return its double coordinates.
+    """
+    return a, a + 2 * b
+
+
+def double_to_axial(r: float, c: float) -> tuple[float]:
+    """
+    Given double coordinates of a point in the plane relative to a flat-top hexagonal
+    grid centered at the origin, return its axial coordinates.
+    """
+    return r, (c - r) / 2
+
+
+def cartesian_to_axial(x: float, y: float, R: float) -> tuple[float]:
+    """
+    Given Cartesian coordinates of a point in the plane, return its axial coordinates
+    relative to a flat-top hexagon grid centered at the origin with hexagon
+    circumradius ``R``.
+
+    For more details on axial coordinates see [RBG]_.
+    """
+    return (2 / 3) * x / R, (-x / 3 + (sqrt(3) / 3) * y) / R
+
+
+def hexagon_vertex(x: float, y: float, R: float, i: int) -> tuple[float]:
+    """
+    Given a flat-top hexagon centered at Cartesian point ``(x, y)`` with
+    circumradius ``R``, return its index ``i`` vertex in counterclockwise order
+    according to this diagram::
+
+           2   1
+
+        3         0
+
+           4   5
+
+    Take ``i`` modulo 6 to allow for any integer input.
+    """
+    θ = i * pi / 3
+    return x + R * cos(θ), y + R * sin(θ)
