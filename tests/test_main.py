@@ -146,12 +146,13 @@ def test_grid_from_gdf():
     assert grid2.shape[0] <= grid1.shape[0]
 
 
-def test_geohexgrid():
+# Test main function
+def test_make_grid():
     shapes = gpd.read_file(DATA_DIR / "shapes.geojson")
 
-    grid1 = geohexgrid(shapes, 0.01)
+    grid1 = make_grid(shapes, 0.01)
     assert grid1.crs == shapes.crs
 
-    grid2 = geohexgrid(shapes, 0.01, intersect=True)
+    grid2 = make_grid(shapes, 0.01, intersect=True)
     assert grid2.crs == shapes.crs
     assert grid2.shape[0] <= grid1.shape[0]

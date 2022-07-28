@@ -2,10 +2,10 @@ Geohex
 ******
 A Python 3.9+ library for casting evil spells upon the Earth.
 Just kidding!
-Humanity has already taken care of that.
+Humanity has already done that.
 
 Rather, a Python 3.9+ library for making geographic hexagon grids like those produced by QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
-Not designed for making `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_.
+Not designed for making `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_ like Uber's H3.
 
 
 Contributors

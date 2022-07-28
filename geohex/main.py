@@ -213,46 +213,6 @@ class GeoHexSystem:
         return grid
 
 
-def geohexgrid(
-    g: gpd.GeoDataFrame,
-    R: float,
-    x: Optional[float] = None,
-    y: Optional[float] = None,
-    *,
-    intersect: bool = False,
-) -> gpd.GeoDataFrame:
-    """
-    Return a GeoDataFrame containing a minimal set of flat-top hexagons with
-    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame ``g``.
-    Optionally, center the grid at point ``(x, y)``, which defaults to the bottom left
-    corner of ``g``'s bounding box.
-
-    The hexagons will lie in the plane of ``g``'s CRS and will use its distance units,
-    e.g. metres for the New Zealand Transverse Mercator (NZTM) CRS
-    and decimal degrees for the WGS84 CRS.
-
-    If ``intersect``, then return only the hexagons that intersects the ``g``'s
-    features.
-    Be warned that this option computes a spatial join, which can slow things down
-    if the number of hexagons is large and the feature set detailed.
-    In that case, install PyGeos for a speed up or simplify the features beforehand.
-
-    EXAMPLE::
-
-        # Load some New Zealand features and set the CRS to NZTM
-        g = gpd.read_file(my_path).to_crs("epsg:2193")
-
-        # Make a hex grid of 250 metre circumradius and keep only the portion
-        # that intersects the features of ``g``
-        grid = grid(g, 250, intersect=True)
-
-    """
-    if x is None or y is None:
-        x, __, y, __ = g.total_bounds
-
-    return GeoHexSystem(g.crs, R, x, y).grid_from_gdf(g, intersect=intersect)
-
-
 @dataclass(frozen=True)
 class Cell:
     """
@@ -376,9 +336,52 @@ class Cell:
         return self.neighbour(direction)
 
 
-# ---------
-# Helpers
-# ---------
+# ----------------
+# Mainr functions
+# ----------------
+def make_grid(
+    g: gpd.GeoDataFrame,
+    R: float,
+    x: Optional[float] = None,
+    y: Optional[float] = None,
+    *,
+    intersect: bool = False,
+) -> gpd.GeoDataFrame:
+    """
+    Return a GeoDataFrame containing a minimal set of flat-top hexagons with
+    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame ``g``.
+    Optionally, center the grid at point ``(x, y)``, which defaults to the bottom left
+    corner of ``g``'s bounding box.
+
+    The hexagons will lie in the plane of ``g``'s CRS and will use its distance units,
+    e.g. metres for the New Zealand Transverse Mercator (NZTM) CRS
+    and decimal degrees for the WGS84 CRS.
+
+    If ``intersect``, then return only the hexagons that intersects the ``g``'s
+    features.
+    Be warned that this option computes a spatial join, which can slow things down
+    if the number of hexagons is large and the feature set detailed.
+    In that case, install PyGeos for a speed up or simplify the features beforehand.
+
+    EXAMPLE::
+
+        # Load some New Zealand features and set the CRS to NZTM
+        g = gpd.read_file(my_path).to_crs("epsg:2193")
+
+        # Make a hex grid of 250 metre circumradius and keep only the portion
+        # that intersects the features of ``g``
+        grid = make_grid(g, 250, intersect=True)
+
+    """
+    if x is None or y is None:
+        x, __, y, __ = g.total_bounds
+
+    return GeoHexSystem(g.crs, R, x, y).grid_from_gdf(g, intersect=intersect)
+
+
+# -----------------
+# Helper functions
+# -----------------
 def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     """
     Given axial coordinates of a point in the plane relative to a flat-top hexagonal
