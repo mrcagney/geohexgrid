@@ -201,6 +201,7 @@ class GeoHexSystem:
             grid = (
                 self.grid_from_bbox(*g.total_bounds, as_gdf=True)
                 .sjoin(g)
+                .drop_duplicates(subset=["cell_id"])
                 .filter(["cell_id", "geometry"])
             )
             if not as_gdf:
