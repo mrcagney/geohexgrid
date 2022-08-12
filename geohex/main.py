@@ -5,7 +5,6 @@ from math import sqrt, sin, cos, pi
 import pyproj
 import geopandas as gpd
 import shapely.geometry as sg
-import plum
 
 
 @dataclass(frozen=True)
@@ -150,20 +149,20 @@ class GeoHexSystem:
             while c.center_double()[0] <= maxp:
                 row.append(c)
                 # Get next cell of row
-                c = c.neighbour("ru").neighbour("rd")
+                c = c.neighbour("NE").neighbour("SE")
             return row
 
         cover = []
         # Set how to get from the start of one row to the start of the row above:
         # zig-zag or zag-zig
         if minp < ld_p:
-            d = {0: "lu", 1: "ru"}
+            d = {0: "NW", 1: "NE"}
         else:
-            d = {0: "ru", 1: "lu"}
+            d = {0: "NE", 1: "NW"}
 
         if minq < ld_q:
             # The bottom row lies below cell ld, so build that row first
-            row = make_row(ld.neighbour("rd"))
+            row = make_row(ld.neighbour("SE"))
             cover.extend(row)
 
         # Build rest of rows, working our way upwards
@@ -276,61 +275,35 @@ class Cell:
         """
         return sg.Polygon(self.vertices() + self.vertices()[:1])
 
-    @plum.dispatch
     def neighbour(self, direction: str) -> "Cell":
         """
         Return this Cell's neighbour Cell in the given direction, which must be one of
-        the strings 'ru', 'u', 'lu', 'lu', 'd', 'rd' whose meanings are diagramed
-        here with this Cell in the center::
+        the compass direction strings 'N', 'NW', 'SW', 'S', 'SE', 'NE' whose meanings 
+        are diagramed here with this Cell in the center::
 
-                u
-            lu     ru
+                N
+            NW     NE
                 .
-            ld     rd
-                d
+            SW     SE
+                S
 
         Raise a ValueError when given an invalid direction.
         """
         a, b = self.a, self.b
         d = {
-            "ru": (a + 1, b),
-            "u": (a, b + 1),
-            "lu": (a - 1, b + 1),
-            "ld": (a - 1, b),
-            "d": (a, b - 1),
-            "rd": (a + 1, b - 1),
+            "NE": (a + 1, b),
+            "N": (a, b + 1),
+            "NW": (a - 1, b + 1),
+            "SW": (a - 1, b),
+            "S": (a, b - 1),
+            "SE": (a + 1, b - 1),
         }
         try:
             return Cell(*d[direction], self.R)
-        except Exception:
+        except KeyError:
             raise ValueError(f"Invalid direction {direction}")
 
-    @plum.dispatch
-    def neighbour(self, direction: int) -> "Cell":
-        """
-        Return this Cell's neighbour in the given integer direction, which is
-        interpreted according to this diagram with this Cell in the center::
-
-                1
-            2       0
-                .
-            3       5
-                4
-
-        Take the direction modulo 6 to allow for any integer input.
-        Raise a plum.function.NotFoundLookupError when given an invalid direction.
-        """
-        d = {
-            0: "ru",
-            1: "u",
-            2: "lu",
-            3: "ld",
-            4: "d",
-            5: "rd",
-        }
-        return self.neighbour(d[direction % 6])
-
-    def neighbor(self, direction: str | int) -> "Cell":
+    def neighbor(self, direction: str) -> "Cell":
         """
         Alias of :method:`neighbour` for the American English spellers.
         """

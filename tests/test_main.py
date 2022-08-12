@@ -1,4 +1,3 @@
-import plum
 import numpy as np
 
 from .context import geohex, pytest, DATA_DIR
@@ -65,14 +64,11 @@ def test_polygon():
 
 def test_neighbour():
     c = Cell(0, 0, R)
-    assert c.neighbour(2) == c.neighbour(-4)
-    assert c.neighbour(0) == c.neighbour("ru")
-    assert len(set(c.neighbor(i) for i in range(6))) == 6
+    neighbours = ["N", "NW", "SW", "S", "SE", "NE"]
+    assert len(set(c.neighbor(i) for i in neighbours))== 6
 
     with pytest.raises(ValueError):
         c.neighbour("fail")
-    with pytest.raises(plum.function.NotFoundLookupError):
-        c.neighbour(0.8)
 
 
 # Test GeoHexSystem methods
