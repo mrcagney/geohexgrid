@@ -4,6 +4,7 @@ version = "1.0.0"
 description = "A Python library for making hexagon grids of small geographic extent"
 authors = ["Alex Raichev <araichev@mrcagney.com>"]
 license = "MIT"
+repository = "https://gitlab.com/mrcagney/geohex"
 
 [tool.poetry.dependencies]
 python = ">=3.9, <4"
