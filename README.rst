@@ -19,7 +19,7 @@ Contributors
 
 Installation
 ============
-Create a Python 3.9+ virtual environment and install from PyPI, e.g. via ``poetry add geohex``.
+Clone the repo, install a Python 3.9+ virtual environment, and install the dependencies via ``poetry install``.
 
 
 Examples
@@ -42,3 +42,5 @@ Changes
 1.0.0, 2022-08-12
 -----------------
 - First release.
+- If i want to publish this library on PyPI, then i must change it's name, says PyPI.
+  It's too similar to other package names.
