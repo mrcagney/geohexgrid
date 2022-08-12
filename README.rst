@@ -42,5 +42,4 @@ Changes
 1.0.0, 2022-08-12
 -----------------
 - First release.
-- If i want to publish this library on PyPI, then i must change it's name, says PyPI.
-  It's too similar to other package names.
+- If i want to publish this library on PyPI, then PyPI says i must change its name, which is currently too similar to extant package names on PyPI.
