@@ -5,7 +5,6 @@ from math import sqrt, sin, cos, pi
 import pyproj
 import geopandas as gpd
 import shapely.geometry as sg
-import plum
 
 
 @dataclass(frozen=True)
@@ -69,8 +68,8 @@ class GeoHexSystem:
         Given the ID of a Cell in this GeoHexSystem, as defined by the method
         :meth:`Cell.id`, return the corresponding Cell.
         """
-        a, b = cell_id.split(",")
-        return Cell(self, int(a), int(b))
+        a, b = axial_center_from_id(cell_id)
+        return Cell(int(a), int(b), self.R)
 
     def cell_from_axial_point(self, a: float, b: float) -> "Cell":
         """
@@ -83,7 +82,7 @@ class GeoHexSystem:
         else:
             center = int(a_round), int(b_round + round(b + 0.5 * a))
 
-        return Cell(self, center[0], center[1])
+        return Cell(center[0], center[1], self.R)
 
     def cell_from_point(self, x, y) -> "Cell":
         """
@@ -150,20 +149,20 @@ class GeoHexSystem:
             while c.center_double()[0] <= maxp:
                 row.append(c)
                 # Get next cell of row
-                c = c.neighbour("ru").neighbour("rd")
+                c = c.neighbour("NE").neighbour("SE")
             return row
 
         cover = []
         # Set how to get from the start of one row to the start of the row above:
         # zig-zag or zag-zig
         if minp < ld_p:
-            d = {0: "lu", 1: "ru"}
+            d = {0: "NW", 1: "NE"}
         else:
-            d = {0: "ru", 1: "lu"}
+            d = {0: "NE", 1: "NW"}
 
         if minq < ld_q:
             # The bottom row lies below cell ld, so build that row first
-            row = make_row(ld.neighbour("rd"))
+            row = make_row(ld.neighbour("SE"))
             cover.extend(row)
 
         # Build rest of rows, working our way upwards
@@ -206,7 +205,7 @@ class GeoHexSystem:
             )
             if not as_gdf:
                 grid = [
-                    Cell(self, int(a), int(b)) for a, b in grid.cell_id.str.split(",")
+                    Cell(int(a), int(b), self.R) for a, b in grid.cell_id.str.split(",")
                 ]
         else:
             grid = self.grid_from_bbox(*g.total_bounds, as_gdf=as_gdf)
@@ -217,16 +216,16 @@ class GeoHexSystem:
 @dataclass(frozen=True)
 class Cell:
     """
-    Represents a flat-top hexagon cell within GeoHexSystem ``ghs`` and centered at
-    axial coordinates ``(a, b)``.
+    Represents a flat-top hexagon cell in the Cartesian plane centered at
+    axial coordinates ``(a, b)`` and with circumradius ``R``.
 
     For an explanation of axial coordinates, double coordinates, etc. of hexagon grids,
     see [RBG]_.
     """
 
-    ghs: GeoHexSystem
     a: int
     b: int
+    R: float
 
     def id(self) -> str:
         """
@@ -234,7 +233,7 @@ class Cell:
         form as a unique identifier for this Cell within the GeoHexSystem
         (but not unique across GeoHexSystems).
         """
-        return f"{self.a},{self.b}"
+        return axial_center_to_id(self.a, self.b)
 
     def center_axial(self) -> tuple[int]:
         """
@@ -253,7 +252,7 @@ class Cell:
         Return the center of this Cell in Cartesian coordinates, that is,
         the coordinates of the CRS of the GeoHexSystem of this Cell.
         """
-        return axial_to_cartesian(self.a, self.b, self.ghs.R)
+        return axial_to_cartesian(self.a, self.b, self.R)
 
     def vertices(self) -> list[tuple[float]]:
         """
@@ -267,7 +266,7 @@ class Cell:
 
         """
         x, y = self.center()
-        return [hexagon_vertex(x, y, self.ghs.R, i) for i in range(6)]
+        return [hexagon_vertex(x, y, self.R, i) for i in range(6)]
 
     def polygon(self) -> sg.Polygon:
         """
@@ -276,61 +275,35 @@ class Cell:
         """
         return sg.Polygon(self.vertices() + self.vertices()[:1])
 
-    @plum.dispatch
     def neighbour(self, direction: str) -> "Cell":
         """
         Return this Cell's neighbour Cell in the given direction, which must be one of
-        the strings 'ru', 'u', 'lu', 'lu', 'd', 'rd' whose meanings are diagramed
-        here with this Cell in the center::
+        the compass direction strings 'N', 'NW', 'SW', 'S', 'SE', 'NE' whose meanings
+        are diagramed here with this Cell in the center::
 
-                u
-            lu     ru
+                N
+            NW     NE
                 .
-            ld     rd
-                d
+            SW     SE
+                S
 
         Raise a ValueError when given an invalid direction.
         """
         a, b = self.a, self.b
         d = {
-            "ru": (a + 1, b),
-            "u": (a, b + 1),
-            "lu": (a - 1, b + 1),
-            "ld": (a - 1, b),
-            "d": (a, b - 1),
-            "rd": (a + 1, b - 1),
+            "NE": (a + 1, b),
+            "N": (a, b + 1),
+            "NW": (a - 1, b + 1),
+            "SW": (a - 1, b),
+            "S": (a, b - 1),
+            "SE": (a + 1, b - 1),
         }
         try:
-            return Cell(self.ghs, *d[direction])
-        except Exception:
+            return Cell(*d[direction], self.R)
+        except KeyError:
             raise ValueError(f"Invalid direction {direction}")
 
-    @plum.dispatch
-    def neighbour(self, direction: int) -> "Cell":
-        """
-        Return this Cell's neighbour in the given integer direction, which is
-        interpreted according to this diagram with this Cell in the center::
-
-                1
-            2       0
-                .
-            3       5
-                4
-
-        Take the direction modulo 6 to allow for any integer input.
-        Raise a plum.function.NotFoundLookupError when given an invalid direction.
-        """
-        d = {
-            0: "ru",
-            1: "u",
-            2: "lu",
-            3: "ld",
-            4: "d",
-            5: "rd",
-        }
-        return self.neighbour(d[direction % 6])
-
-    def neighbor(self, direction: str | int) -> "Cell":
+    def neighbor(self, direction: str) -> "Cell":
         """
         Alias of :method:`neighbour` for the American English spellers.
         """
@@ -338,7 +311,7 @@ class Cell:
 
 
 # ----------------
-# Mainr functions
+# Main functions
 # ----------------
 def make_grid(
     g: gpd.GeoDataFrame,
@@ -350,7 +323,8 @@ def make_grid(
 ) -> gpd.GeoDataFrame:
     """
     Return a GeoDataFrame containing a minimal set of flat-top hexagons with
-    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame ``g``.
+    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame
+    ``g``.
     Optionally, center the grid at point ``(x, y)``, which defaults to the bottom left
     corner of ``g``'s bounding box.
 
@@ -358,8 +332,7 @@ def make_grid(
     e.g. metres for the New Zealand Transverse Mercator (NZTM) CRS
     and decimal degrees for the WGS84 CRS.
 
-    If ``intersect``, then return only the hexagons that intersects the ``g``'s
-    features.
+    If ``intersect``, then return only the hexagons that intersect ``g``'s features.
     Be warned that this option computes a spatial join, which can slow things down
     if the number of hexagons is large and the feature set detailed.
     In that case, install PyGeos for a speed up or simplify the features beforehand.
@@ -383,6 +356,15 @@ def make_grid(
 # -----------------
 # Helper functions
 # -----------------
+def axial_center_to_id(a: int, b: int) -> str:
+    return f"{a}-{b}"
+
+
+def id_to_axial_center(cid: str) -> tuple[int]:
+    a, b = cid.split("-")
+    return int(a), int(b)
+
+
 def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     """
     Given axial coordinates of a point in the plane relative to a flat-top hexagonal
