@@ -13,9 +13,10 @@ Here's an example of its main use, namely, minimally covering a GeoDataFrame of 
   # Load New Zealand territorial authorities projected in EPSG 2193 (NZTM)
   shapes = gpd.read_file(DATA_DIR / "nz_tas.gpkg")
 
-  # Generate a minimal cover of it with hexagons of circumradius 10 kilometres
+  # Cover it minimally with hexagons of circumradius 10 kilometres
   grid = ghg.make_grid(shapes, 10_000, intersect=True)
 
+  # Plot
   base = shapes.plot(color='red', figsize=(20, 20), aspect="equal")
   grid.plot(ax=base, color='white', edgecolor="blue", alpha=0.5)
 
@@ -53,6 +54,6 @@ Notes
 Changes
 =======
 
-1.0.0, 2022-08-12
+1.0.0, 2022-08-15
 -----------------
 - First release.
