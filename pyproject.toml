@@ -5,6 +5,7 @@ description = "A Python library for making geographic hexagon grids like QGIS's 
 authors = ["Alex Raichev <araichev@mrcagney.com>"]
 license = "MIT"
 repository = "https://gitlab.com/mrcagney/geohexgrid"
+readme = "README.rst"
 
 [tool.poetry.dependencies]
 python = ">=3.9, <4"
