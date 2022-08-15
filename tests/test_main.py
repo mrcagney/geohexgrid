@@ -1,7 +1,7 @@
 import numpy as np
 
-from .context import geohex, pytest, DATA_DIR
-from geohex import *
+from .context import geohexgrid, pytest, DATA_DIR
+from geohexgrid import *
 
 
 R = 50
@@ -12,9 +12,11 @@ GHS = GeoHexSystem("epsg:2193", R, 0, 0)
 def test_axial_center_to_id():
     assert axial_center_to_id(26, 530) == "26-530"
 
+
 def test_cell_id_to_axial_center():
     a, b = 2, 3
     assert id_to_axial_center(axial_center_to_id(a, b)) == (a, b)
+
 
 def test_axial_to_cartesian():
     get = axial_to_cartesian(0, 0, 5)
@@ -65,7 +67,7 @@ def test_polygon():
 def test_neighbour():
     c = Cell(0, 0, R)
     neighbours = ["N", "NW", "SW", "S", "SE", "NE"]
-    assert len(set(c.neighbor(i) for i in neighbours))== 6
+    assert len(set(c.neighbor(i) for i in neighbours)) == 6
 
     with pytest.raises(ValueError):
         c.neighbour("fail")

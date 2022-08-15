@@ -278,7 +278,7 @@ class Cell:
     def neighbour(self, direction: str) -> "Cell":
         """
         Return this Cell's neighbour Cell in the given direction, which must be one of
-        the compass direction strings 'N', 'NW', 'SW', 'S', 'SE', 'NE' whose meanings 
+        the compass direction strings 'N', 'NW', 'SW', 'S', 'SE', 'NE' whose meanings
         are diagramed here with this Cell in the center::
 
                 N
@@ -323,7 +323,7 @@ def make_grid(
 ) -> gpd.GeoDataFrame:
     """
     Return a GeoDataFrame containing a minimal set of flat-top hexagons with
-    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame 
+    circumradius ``R`` that covers the bounding box (total bounds) of GeoDataFrame
     ``g``.
     Optionally, center the grid at point ``(x, y)``, which defaults to the bottom left
     corner of ``g``'s bounding box.
@@ -359,9 +359,11 @@ def make_grid(
 def axial_center_to_id(a: int, b: int) -> str:
     return f"{a}-{b}"
 
+
 def id_to_axial_center(cid: str) -> tuple[int]:
     a, b = cid.split("-")
     return int(a), int(b)
+
 
 def axial_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     """
