@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "geohexgrid"
-version = "1.0.0"
+version = "1.1.0"
 description = "A Python library for making geographic hexagon grids like QGIS's `create grid` function"
 authors = ["Alex Raichev <araichev@mrcagney.com>"]
 license = "MIT"
