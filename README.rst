@@ -54,6 +54,13 @@ Notes
 Changes
 =======
 
+1.1.0, 2023-10-27
+-----------------
+- Added the ``clip`` option to the function ``grid_from_gdf``.
+- Updated dependencies.
+- Re-ordered functions.
+- Changed the cell ID separotor to a comma.
+
 1.0.0, 2022-08-15
 -----------------
 - First release.
