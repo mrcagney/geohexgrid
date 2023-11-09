@@ -50,7 +50,7 @@ def make_grid_points(nrows, ncols, R: float = 1, ox: float = 0, oy: float = 0):
     return x - R / 2 + ox, y - r + oy
 
 
-def make_grid_0(
+def make_grid(
     nrows,
     ncols,
     R: float = 1,
@@ -81,6 +81,16 @@ def make_grid_0(
     y = Y[:, 0]
     # Use double coordinates for cell IDs
     cell_id = [f"{oa + j},{ob + i + j%2}" for i in range(nrows) for j in range(ncols)]
+    """
+    Make hexagons, each of which has vertex order:
+
+       v4  v3
+
+    v5        v6
+
+       v0  v1
+
+    """
     geometry = [
         sg.Polygon(
             [
@@ -129,7 +139,7 @@ def make_grid_from_bbox(
 
     if ox is None or oy is None:
         # Cover the box with a grid whose origin lies at minx, miny
-        grid = make_grid_0(nrows=nrows, ncols=ncols, ox=minx, oy=miny, R=R)
+        grid = make_grid(nrows=nrows, ncols=ncols, ox=minx, oy=miny, R=R)
 
     else:
         # Cover the box with a grid whose origin lies at p = (ox, oy)
@@ -141,14 +151,14 @@ def make_grid_from_bbox(
 
         # Cover the box translated to p, then translate it back to q and use cell IDs
         # relative to a p-center
-        grid = make_grid_0(
+        grid = make_grid(
             nrows=nrows, ncols=ncols, ox=ox, oy=oy, R=R, oa=a, ob=b
         ).assign(geometry=lambda x: x.translate(*(q - p)))
     grid.crs = crs
     return grid
 
 
-def make_grid(
+def make_grid_from_gdf(
     g: gpd.GeoDataFrame,
     R: float,
     ox: float | None = None,
