@@ -2,6 +2,7 @@ Geohexgrid
 **********
 A Python 3.9+ library for making geographic hexagon grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 Not designed for making `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_ like Uber's H3.
+For that, see `this Pangeo discussion <https://discourse.pangeo.io/t/discrete-global-grid-systems-dggs-use-with-pangeo/2274/48>`_.
 
 Here's an example of its main use, namely, minimally covering a GeoDataFrame of features with a flat-top hexagon grid of given resolution.
 
