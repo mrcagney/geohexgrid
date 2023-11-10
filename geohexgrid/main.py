@@ -7,6 +7,53 @@ import shapely.geometry as sg
 
 
 K = np.sqrt(3) / 2  # cosine of 30°
+SQRT3 = np.sqrt(3)
+
+
+def axial_round(a: float, b: float) -> tuple[int]:
+    """
+    Given floating-point axial coordinates of a point in a hexagon grid,
+    return the axial coordinates of the hexagon containing the point.
+
+    Adapted from https://observablehq.com/@jrus/hexround.
+    """
+    a_round, b_round = round(a), round(b)
+    a, b = a - a_round, b - b_round  # remainders
+    if abs(a) >= abs(b):
+        result = int(a_round + round(a + 0.5 * b)), int(b_round)
+    else:
+        result = int(a_round), int(b_round + round(b + 0.5 * a))
+    return result
+
+
+def cartesian_to_axial(x: float, y: float, R: float) -> tuple[int]:
+    """
+    Given a flat-top hexagon grid of circumradius ``R`` centered at the origin
+    and given Cartesian coordinates ``(x, y)`` of a point in the plane,
+    return the axial coordinates of the hexagon containing the point.
+
+    Formula from https://www.redblobgames.com/grids/hexagons/#pixel-to-hex .
+    """
+    return axial_round((2 / 3) * x / R, (-x / 3 + (SQRT3 / 3) * y) / R)
+
+
+def axial_to_double(a: float, b: float) -> tuple[float]:
+    """
+    Given axial coordinates of a hexagon in a flat-top hexagonal grid,
+    return its double coordinates.
+
+    Formula from https://www.redblobgames.com/grids/hexagons/#conversions-doubled .
+    """
+    return a, a + 2 * b
+
+
+def cartesian_to_double(x: float, y: float, R: float) -> tuple[float]:
+    """
+    Given a flat-top hexagon grid of circumradius ``R`` centered at the origin
+    and given Cartesian coordinates ``(x, y)`` of a point in the plane,
+    return the double coordinates of the hexagon containing the point.
+    """
+    return axial_to_double(*cartesian_to_axial(x, y, R))
 
 
 def double_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
@@ -15,20 +62,9 @@ def double_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     grid centered at the origin with hexagon circumradius ``R``,
     return the Cartesian coordinates of its center.
 
-    For details on double coordinates see [RBG]_.
+    Formula from https://www.redblobgames.com/grids/hexagons/#hex-to-pixel-doubled .
     """
-    return 3 * a * R / 2, b * K * R
-
-
-def cartesian_to_double(x: float, y: float, R: float) -> tuple[float]:
-    """
-    Given Cartesian coordinates of the center of a hexgon in a flat-top hexagon
-    grid centered at the origin with hexagon circumradius ``R``,
-    return the double coordinates of the hexagon
-
-    For details on double coordinates see [RBG]_.
-    """
-    return int(2 * x / (3 * R)), int(y / (K * R))
+    return (3 / 2) * R * a, K * R * b
 
 
 def make_grid_points(nrows, ncols, R: float = 1, ox: float = 0, oy: float = 0):
@@ -60,8 +96,8 @@ def make_grid(
     ob: int = 0,
 ) -> gpd.GeoDataFrame:
     """
-    Make a grid of flat-top hexagons with ``nrows`` rows, ``ncols`` columns,
-    circumradius ``R``, and bottom left hexagon centered at ``(ox, oy)``.
+    Make a flat-top hexagon grid with ``nrows`` rows, ``ncols`` columns,
+    circumradius ``R``, and bottom left hexagon centered at point ``(ox, oy)``.
     A row is a left-to-right down-up zig-zag of hexagons and the next row is stacked
     on top of the previous row.
 
@@ -80,7 +116,7 @@ def make_grid(
     X, Y = make_grid_points(nrows=nrows, ncols=ncols, ox=ox, oy=oy, R=R)
     y = Y[:, 0]
     # Use double coordinates for cell IDs
-    cell_id = [f"{oa + j},{ob + i + j%2}" for i in range(nrows) for j in range(ncols)]
+    cell_id = [f"{oa + j},{ob + 2*i + j%2}" for i in range(nrows) for j in range(ncols)]
     """
     Make hexagons, each of which has vertex order:
 
@@ -108,7 +144,7 @@ def make_grid(
     return gpd.GeoDataFrame({"cell_id": cell_id, "geometry": geometry})
 
 
-def make_grid_from_bbox(
+def make_grid_from_bounds(
     minx: float,
     miny: float,
     maxx: float,
@@ -132,28 +168,46 @@ def make_grid_from_bbox(
     e.g. metres for the New Zealand Transverse Mercator (NZTM) CRS
     and decimal degrees for the WGS84 CRS.
     """
-    # A column of i cells has covering height >= (2 * i - 1) * r, where r = K * R, so
-    nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
-    # A row of j cells has covering width >= (3 * j - 2) * R / 2, so
-    ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
 
     if ox is None or oy is None:
-        # Cover the box with a grid whose origin lies at minx, miny
+        # Cover the bounds with a grid whose origin lies at minx, miny
+        # A column of i cells has covering height >= (2 * i - 1) * r,
+        # where r = K * R, so
+        nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
+        # A row of j cells has covering width >= (3 * j - 2) * R / 2, so
+        ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
         grid = make_grid(nrows=nrows, ncols=ncols, ox=minx, oy=miny, R=R)
 
     else:
         # Cover the box with a grid whose origin lies at p = (ox, oy)
-        p = np.array((ox, oy))  # origin of grid
-        q = np.array((minx, miny))  # first cell of box covers this point
+        adl, bdl = cartesian_to_double(minx - ox, miny - oy, R)
+        aur, bur = cartesian_to_double(maxx - ox, maxy - oy, R)
+        ncols = aur - adl + 1
+        nrows = (bur - bdl) // 2 + 1
+        x, y = double_to_cartesian(adl, bdl, R)
 
-        # Relative to a hexgrid with origin p, get the cell ID of q
-        a, b = cartesian_to_double(*(q - p), R)
+        # Fix this logic to shift bottom left cell C
+        if x - minx > R / 2:
+            # Grid not covering left edge of box,
+            # so shift C to down left neighbour and add a column
+            x -= 3 * R / 2
+            y -= K * R
+            adl -= 1
+            bdl -= 1
+            ncols += 1
 
-        # Cover the box translated to p, then translate it back to q and use cell IDs
+        if y > miny:
+            # Grid not covering bottom edge of box,
+            # so shift C to down neighbour and add a row
+            y -= 2 * K * R
+            bdl -= 2
+            nrows += 1
+
+        # Cover the box translated to p, then translate it to q and use cell IDs
         # relative to a p-center
         grid = make_grid(
-            nrows=nrows, ncols=ncols, ox=ox, oy=oy, R=R, oa=a, ob=b
-        ).assign(geometry=lambda x: x.translate(*(q - p)))
+            nrows=nrows, ncols=ncols, ox=ox + x, oy=oy + y, R=R, oa=adl, ob=bdl
+        )  # .assign(geometry=lambda x: x.translate(*(q - p)))
     grid.crs = crs
     return grid
 
@@ -203,7 +257,7 @@ def make_grid_from_gdf(
     .. [RBG] Hexagonal Grids, https://www.redblobgames.com/grids/hexagons
 
     """
-    grid = make_grid_from_bbox(*g.total_bounds, R=R, ox=ox, oy=oy, crs=g.crs)
+    grid = make_grid_from_bounds(*g.total_bounds, R=R, ox=ox, oy=oy, crs=g.crs)
     if intersect:
         grid = (
             grid.sjoin(g)
