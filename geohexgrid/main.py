@@ -170,26 +170,27 @@ def make_grid_from_bounds(
     """
 
     if ox is None or oy is None:
-        # Cover the bounds with a grid whose origin lies at minx, miny
-        # A column of i cells has covering height >= (2 * i - 1) * r,
+        # Cover the rectangle with a grid whose origin lies at minx, miny.
+        # A column of i such cells has covering height >= (2 * i - 1) * r,
         # where r = K * R, so
         nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
-        # A row of j cells has covering width >= (3 * j - 2) * R / 2, so
+        # A row of j such cells has covering width >= (3 * j - 2) * R / 2, so
         ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
         grid = make_grid(nrows=nrows, ncols=ncols, ox=minx, oy=miny, R=R)
-
     else:
-        # Cover the box with a grid whose origin lies at p = (ox, oy)
+        # Cover the rectangle with a grid whose origin lies at ox, oy.
+        # Get the double coordinates of the hexagons covering the rectangle's
+        # down-left and up-right corners.
         adl, bdl = cartesian_to_double(minx - ox, miny - oy, R)
         aur, bur = cartesian_to_double(maxx - ox, maxy - oy, R)
         ncols = aur - adl + 1
         nrows = (bur - bdl) // 2 + 1
-        x, y = double_to_cartesian(adl, bdl, R)
+        x, y = double_to_cartesian(adl, bdl, R)  # center of down-left hexagon H
 
-        # Fix this logic to shift bottom left cell C
+        # Shift H if necessary
         if x - minx > R / 2:
-            # Grid not covering left edge of box,
-            # so shift C to down left neighbour and add a column
+            # Grid not covering left edge of rectangle,
+            # so shift H to its down-left neighbour and add a column
             x -= 3 * R / 2
             y -= K * R
             adl -= 1
@@ -197,17 +198,16 @@ def make_grid_from_bounds(
             ncols += 1
 
         if y > miny:
-            # Grid not covering bottom edge of box,
-            # so shift C to down neighbour and add a row
+            # Grid not covering bottom edge of rectangle,
+            # so shift H to its down-neighbour and add a row
             y -= 2 * K * R
             bdl -= 2
             nrows += 1
 
-        # Cover the box translated to p, then translate it to q and use cell IDs
-        # relative to a p-center
         grid = make_grid(
             nrows=nrows, ncols=ncols, ox=ox + x, oy=oy + y, R=R, oa=adl, ob=bdl
-        )  # .assign(geometry=lambda x: x.translate(*(q - p)))
+        )
+
     grid.crs = crs
     return grid
 
