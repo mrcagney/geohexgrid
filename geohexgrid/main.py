@@ -67,11 +67,11 @@ def double_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     return (3 / 2) * R * a, K * R * b
 
 
-def make_grid_points(nrows, ncols, R: float = 1, ox: float = 0, oy: float = 0):
+def make_grid_points(nrows, ncols, R: float = 1, x0: float = 0, y0: float = 0):
     """
     Make the vertices and centers of a flat-top hexagon grid with
     ``nrows`` rows, ``ncols`` columns, circumradius ``R``,
-    and bottom left hexagon centered at ``(ox, oy)``.
+    and bottom left hexagon centered at ``(x0, y0)``.
     A row is a left-to-right down-up zig-zag of hexagons and the next row is stacked
     on top of the previous row.
     """
@@ -83,26 +83,27 @@ def make_grid_points(nrows, ncols, R: float = 1, ox: float = 0, oy: float = 0):
         indexing="xy",
     )
     x[1::2, :] -= R / 2
-    return x - R / 2 + ox, y - r + oy
+    return x - R / 2 + x0, y - r + y0
 
 
 def make_grid(
     nrows,
     ncols,
     R: float = 1,
-    ox: float = 0,
-    oy: float = 0,
-    oa: int = 0,
-    ob: int = 0,
+    x0: float = 0,
+    y0: float = 0,
+    a0: int = 0,
+    b0: int = 0,
 ) -> gpd.GeoDataFrame:
     """
     Make a flat-top hexagon grid with ``nrows`` rows, ``ncols`` columns,
-    circumradius ``R``, and bottom left hexagon centered at point ``(ox, oy)``.
+    circumradius ``R``, and bottom left hexagon centered at point ``(x0, y0)`` with
+    and cell ID ``f'{a0}, {b0}'``.
     A row is a left-to-right down-up zig-zag of hexagons and the next row is stacked
     on top of the previous row.
 
     Use double coordinates (see [RBG]_) for cell IDs starting from the
-    bottom-left hexagon/cell with cell ID ``f'oa,ob'``, which defaults to ``'0,0'``.
+    bottom-left hexagon/cell.`
 
     NOTES:
 
@@ -113,10 +114,10 @@ def make_grid(
     - Making a 1000 x 1000 grid with this on my computer takes about 12 seconds
 
     """
-    X, Y = make_grid_points(nrows=nrows, ncols=ncols, ox=ox, oy=oy, R=R)
+    X, Y = make_grid_points(nrows=nrows, ncols=ncols, x0=x0, y0=y0, R=R)
     y = Y[:, 0]
     # Use double coordinates for cell IDs
-    cell_id = [f"{oa + j},{ob + 2*i + j%2}" for i in range(nrows) for j in range(ncols)]
+    cell_id = [f"{a0 + j},{b0 + 2*i + j%2}" for i in range(nrows) for j in range(ncols)]
     """
     Make hexagons, each of which has vertex order:
 
@@ -150,17 +151,18 @@ def make_grid_from_bounds(
     maxx: float,
     maxy: float,
     R: float,
-    ox: float | None = None,
-    oy: float | None = None,
+    ox: float | None = 0,
+    oy: float | None = 0,
     crs: str | None = None,
 ) -> gpd.GeoDataFrame:
     """
-    Return a grid of flat-top hexagons, each of circumradius ``R``
+    Return a grid of flat-top hexagons with origin (ox, oy) and circumradius ``R``
     (and hence area :math:`\frac{3 \sqrt(3)}{2} R^2`), that minimally covers the
     rectangle  with the given coordinate extrema ``minx``, ``miny``, ``maxx``, ``maxy``.
-    Label each hexagon with an ID listed in the column ``'cell_id'``,
-    which is the double coordinates of the hexagon relative to a (``'0,0'``) origin
-    hexagon centered at point ``(ox, oy)``, which defaults to ``(minx, miny)``.
+    Label each hexagon with an ID, in the 'cell_id' column, that is the double
+    coordinates of that hexagon relative to an origin hexagon centered at point
+    ``(ox, oy)`` (and having ID  '0,0').
+    If ``ox`` or ``oy`` is ``None``, then set the origin to ``(minx, miny)``.
     For more details on double coordinates, see [RBG]_.
 
     The grid will lie in the plane of the given CRS (which defaults to ``None``)
@@ -176,16 +178,16 @@ def make_grid_from_bounds(
         nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
         # A row of j such cells has covering width >= (3 * j - 2) * R / 2, so
         ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
-        grid = make_grid(nrows=nrows, ncols=ncols, ox=minx, oy=miny, R=R)
+        grid = make_grid(nrows=nrows, ncols=ncols, x0=minx, y0=miny, R=R)
     else:
         # Cover the rectangle with a grid whose origin lies at ox, oy.
         # Get the double coordinates of the hexagons covering the rectangle's
         # down-left and up-right corners.
-        adl, bdl = cartesian_to_double(minx - ox, miny - oy, R)
-        aur, bur = cartesian_to_double(maxx - ox, maxy - oy, R)
-        ncols = aur - adl + 1
-        nrows = (bur - bdl) // 2 + 1
-        x, y = double_to_cartesian(adl, bdl, R)  # center of down-left hexagon H
+        a0, b0 = cartesian_to_double(minx - ox, miny - oy, R)
+        a1, b1 = cartesian_to_double(maxx - ox, maxy - oy, R)
+        ncols = a1 - a0 + 1
+        nrows = (b1 - b0) // 2 + 1
+        x, y = double_to_cartesian(a0, b0, R)  # center of down-left hexagon H
 
         # Shift H if necessary
         if x - minx > R / 2:
@@ -193,19 +195,19 @@ def make_grid_from_bounds(
             # so shift H to its down-left neighbour and add a column
             x -= 3 * R / 2
             y -= K * R
-            adl -= 1
-            bdl -= 1
+            a0 -= 1
+            b0 -= 1
             ncols += 1
 
         if y > miny:
             # Grid not covering bottom edge of rectangle,
             # so shift H to its down-neighbour and add a row
             y -= 2 * K * R
-            bdl -= 2
+            b0 -= 2
             nrows += 1
 
         grid = make_grid(
-            nrows=nrows, ncols=ncols, ox=ox + x, oy=oy + y, R=R, oa=adl, ob=bdl
+            nrows=nrows, ncols=ncols, x0=ox + x, y0=oy + y, R=R, a0=a0, b0=b0
         )
 
     grid.crs = crs
@@ -215,14 +217,14 @@ def make_grid_from_bounds(
 def make_grid_from_gdf(
     g: gpd.GeoDataFrame,
     R: float,
-    ox: float | None = None,
-    oy: float | None = None,
+    ox: float | None = 0,
+    oy: float | None = 0,
     *,
     intersect: bool = True,
     clip: bool = False,
 ) -> gpd.GeoDataFrame:
     """
-    Return a grid of flat-top hexagons, each of circumradius ``R``
+    Return a grid of flat-top hexagons with origin (ox, oy) and circumradius ``R``
     (and hence area :math:`\frac{3 \sqrt(3)}{2} R^2`), that minimally covers the
     the bounding box (total bounds) of the given GeoDataFrame ``g``.
     Label each hexagon with an ID listed in the column ``'cell_id'``,
