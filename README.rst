@@ -2,7 +2,7 @@ Geohexgrid
 **********
 A Python 3.9+ library for making geographic hexagon grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 Not designed for making `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_ like Uber's H3.
-For that, see `this Pangeo discussion <https://discourse.pangeo.io/t/discrete-global-grid-systems-dggs-use-with-pangeo/2274/48>`_.
+(For that, see `this Pangeo discussion <https://discourse.pangeo.io/t/discrete-global-grid-systems-dggs-use-with-pangeo/2274/48>`_.)
 
 Here's an example of its main use, namely, minimally covering a GeoDataFrame of features with a flat-top hexagon grid of given resolution.
 
@@ -12,17 +12,17 @@ Here's an example of its main use, namely, minimally covering a GeoDataFrame of 
   import geohexgrid as ghg
 
   # Load New Zealand territorial authorities projected in EPSG 2193 (NZTM)
-  shapes = gpd.read_file(DATA_DIR / "nz_tas.gpkg")
+  nz = gpd.read_file(DATA_DIR / "nz_tas.gpkg")
 
   # Cover it minimally with hexagons of circumradius 10 kilometres
-  grid = ghg.make_grid(shapes, 10_000, intersect=True)
+  grid = ghg.make_grid_from_gdf(nz, R=10_000)
 
   # Plot
-  base = shapes.plot(color='red', figsize=(20, 20), aspect="equal")
-  grid.plot(ax=base, color='white', edgecolor="blue", alpha=0.5)
+  base = nz.plot(color="black", figsize=(20, 20), aspect="equal")
+  grid.plot(ax=base, color="white", edgecolor="red", alpha=0.5)
 
 
-.. image:: geohexgrid.png
+.. image:: nz_10000m.png
   :width: 400
   :alt: hexagon grid of 10,000-metre circumradius covering New Zealand
 

@@ -1,5 +1,6 @@
-import numpy as np
+import math
 
+import numpy as np
 import shapely.geometry as sg
 import geopandas as gpd
 
@@ -31,17 +32,30 @@ def test_make_grid_points():
     nrows = 3
     ncols = 5
     R = 3
-    ox, oy = 2, 1
-    X, Y = ghg.make_grid_points(nrows, ncols, R=R, ox=ox, oy=oy)
-    assert X.shape == (3 * nrows, 2 * ncols)
+    x0, y0 = 2, 1
+    X, Y = ghg.make_grid_points(nrows, ncols, R=R, x0=x0, y0=y0)
+    assert X.shape == (2 * nrows + 2, math.ceil((3 * ncols + 2) / 2))
     assert X[0][1] - X[0][0] == R
     assert Y[1][0] - Y[0][0] == ghg.K * R
 
 
 def test_make_grid():
-    R = 1
-    grid = ghg.make_grid(2, 3, R=R, ox=2, oy=1)
-    assert set(grid["cell_id"]) == {"0,0", "1,1", "2,0", "0,2", "1,3", "2,2"}
+    nrows, ncols, R = 2, 4, 1
+    a0, b0 = -2, -2
+    x0, y0 = ghg.double_to_cartesian(a0, b0, R)
+    grid = ghg.make_grid(nrows, ncols, R=R, x0=x0, y0=y0, a0=a0, b0=b0)
+    assert set(grid["cell_id"]) == {
+        "-2,-2",
+        "-1,-1",
+        "0,-2",
+        "1,-1",
+        "-2,0",
+        "-1,1",
+        "0,0",
+        "1,1",
+    }
+    # Areas should be correct
+    assert np.allclose(grid.area, 3 * np.sqrt(3) * R**2 / 2)
     # Should have no gaps
     assert grid.unary_union.boundary.is_ring
 
