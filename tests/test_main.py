@@ -54,14 +54,14 @@ def test_make_grid():
         "0,0",
         "1,1",
     }
-    # Areas should be correct
+    # Cell areas should be correct
     assert np.allclose(grid.area, 3 * np.sqrt(3) * R**2 / 2)
-    # Should have no gaps
+    # Grid should have no gaps
     assert grid.unary_union.boundary.is_ring
 
 
 def test_make_grid_from_bounds():
-    # A very good example
+    # A good example for checking edges
     rect = gpd.GeoDataFrame(
         geometry=[sg.Polygon([(2.1, -1), (4.9, -1), (4.9, 1.9), (2.1, 1.9)])]
     )
@@ -80,11 +80,29 @@ def test_make_grid_from_bounds():
         "2,4",
         "3,3",
     }
+    # Grid should cover rectangle
+    grid.dissolve().contains(rect)
+
+    # Two grids with the same origin should have identical cells where they overlap
+    rect1 = gpd.GeoDataFrame(geometry=[sg.Polygon([(-2, 1), (3, 1), (3, 5), (-2, 5)])])
+    rect2 = rect1.translate(-1, 1)
+    R, ox, oy = 1, 0, 0
+    grid1 = ghg.make_grid_from_bounds(*rect1.total_bounds, R=R, ox=ox, oy=oy)
+    grid2 = ghg.make_grid_from_bounds(*rect2.total_bounds, R=R, ox=ox, oy=oy)
+    cell_ids = set(grid1["cell_id"]) & set(grid2["cell_id"])
+    g1 = grid1.loc[lambda x: x["cell_id"].isin(cell_ids)].sort_values(
+        "cell_id", ignore_index=True
+    )
+    g2 = grid2.loc[lambda x: x["cell_id"].isin(cell_ids)].sort_values(
+        "cell_id", ignore_index=True
+    )
+    assert g1.geom_equals_exact(g2, tolerance=10e-15).all()
 
 
 def test_make_grid_from_gdf():
     shape = gpd.GeoDataFrame(geometry=[sg.Polygon([(1, -1), (3, 1), (0, 3)])])
     grid = ghg.make_grid_from_gdf(shape, R=1, ox=0, oy=0, intersect=True)
+    assert set(grid.columns) == {"cell_id", "geometry"}
     assert set(grid["cell_id"]) == {
         "1,-1",
         "0,0",
@@ -99,12 +117,17 @@ def test_make_grid_from_gdf():
     shapes = gpd.read_file(DATA_DIR / "shapes.geojson").to_crs("epsg:2193")
     R = 900
     grid1 = ghg.make_grid_from_gdf(shapes, R=R, intersect=False)
+    # CRS should be correct
     assert grid1.crs == shapes.crs
-    assert set(grid1.columns) == {"cell_id", "geometry"}
+    # Grid should cover shapes
+    grid1.dissolve().contains(shapes.dissolve())
 
     grid2 = ghg.make_grid_from_gdf(shapes, R=R, intersect=True)
+    # Intersection should produce fewer cells
     assert grid2.shape[0] <= grid1.shape[0]
-    assert grid2.area.sum() >= shapes.area.sum()
+    # Intersection should reduce area
+    assert shapes.area.sum() <= grid2.area.sum() <= grid1.area.sum()
 
+    # Clipping should produce correct area
     grid3 = ghg.make_grid_from_gdf(shapes, R=R, clip=True)
     assert np.allclose(grid3.area.sum(), shapes.area.sum())

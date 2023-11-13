@@ -6,15 +6,17 @@ import geopandas as gpd
 import shapely.geometry as sg
 
 
+#: Recurring constants.
 SQRT3 = np.sqrt(3)
-K = SQRT3 / 2  # cosine of 30°
+K = SQRT3 / 2  # cosine of 30° which is about 0.866
+#: The inradius (minimal radius) r of a hexagon is K times its circumradius
+#: (maximal radius) R, that is, r = K * R.
+
 
 # -----------------------------
 # Helper functions
 # -----------------------------
-# Hexagon grid terminology taken from https://www.redblobgames.com/grids/hexagons.
-
-
+#: Hexagon grid terminology taken from https://www.redblobgames.com/grids/hexagons
 def axial_round(a: float, b: float) -> tuple[int]:
     """
     Given floating-point axial coordinates of a point in a hexagon grid,
@@ -33,7 +35,7 @@ def axial_round(a: float, b: float) -> tuple[int]:
 
 def cartesian_to_axial(x: float, y: float, R: float) -> tuple[int]:
     """
-    Given a flat-top hexagon grid of circumradius ``R`` centreed at the origin
+    Given a flat-top hexagon grid of circumradius ``R`` centered at the origin
     and given Cartesian coordinates ``(x, y)`` of a point in the plane,
     return the axial coordinates of the hexagon containing the point.
 
@@ -54,7 +56,7 @@ def axial_to_double(a: float, b: float) -> tuple[float]:
 
 def cartesian_to_double(x: float, y: float, R: float) -> tuple[float]:
     """
-    Given a flat-top hexagon grid of circumradius ``R`` centreed at the origin
+    Given a flat-top hexagon grid of circumradius ``R`` centered at the origin
     and given Cartesian coordinates ``(x, y)`` of a point in the plane,
     return the double coordinates of the hexagon containing the point.
     """
@@ -64,8 +66,8 @@ def cartesian_to_double(x: float, y: float, R: float) -> tuple[float]:
 def double_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
     """
     Given double coordinates of a hexagon in a flat-top hexagonal
-    grid centreed at the origin with hexagon circumradius ``R``,
-    return the Cartesian coordinates of its centre.
+    grid centered at the origin with hexagon circumradius ``R``,
+    return the Cartesian coordinates of its center.
 
     Formula from https://www.redblobgames.com/grids/hexagons/#hex-to-pixel-doubled .
     """
@@ -77,8 +79,8 @@ def double_to_cartesian(a: float, b: float, R: float) -> tuple[float]:
 # -----------------------------
 def make_grid_points(nrows, ncols, R: float = 1, x0: float = 0, y0: float = 0):
     """
-    Make the vertices and centres of a flat-top hexagon grid of circumradius ``R``
-    with ``nrows`` rows, ``ncols`` columns, and bottom left hexagon centreed at
+    Make the vertices and centers of a flat-top hexagon grid of circumradius ``R``
+    with ``nrows`` rows, ``ncols`` columns, and bottom left hexagon centerd at
     ``(x0, y0)``.
     A row is a left-to-right northeast-neighbour-southeast-neighbour zig-zag of
     hexagons and the next row is stacked on top of the previous row.
@@ -105,7 +107,7 @@ def make_grid(
 ) -> gpd.GeoDataFrame:
     """
     Make a flat-top hexagon grid of circumradius ``R`` with ``nrows`` rows,
-    ``ncols`` columns, and bottom left hexagon centreed at ``(x0, y0)``.
+    ``ncols`` columns, and bottom left hexagon centered at ``(x0, y0)``.
     A row is a left-to-right northeast-neighbour-southeast-neighbour zig-zag of
     hexagons and the next row is stacked on top of the previous row.
 
@@ -180,7 +182,7 @@ def make_grid_from_bounds(
     coordinate extrema are ``minx``, ``miny``, ``maxx``, ``maxy``.
 
     Label the hexagons with double coordinate cell IDs (see :func:`make_grid`)
-    relative to a 0,0 hexagon centreed at point  ``(ox, oy)``.
+    relative to a 0,0 hexagon centered at point  ``(ox, oy)``.
 
     The grid will lie in the plane of the given CRS (which defaults to ``None``)
     and will use its distance units,
@@ -197,19 +199,19 @@ def make_grid_from_bounds(
         grid = make_grid(nrows=nrows, ncols=ncols, x0=minx, y0=miny, R=R)
     else:
         # Cover the rectangle with a grid whose (possibly absent) origin hexagon is
-        # centreed at ox, oy.
+        # centered at ox, oy.
         # To that end, first get the double coordinates of the hexagons covering the
-        # rectangle's down-left and up-right corners.
+        # rectangle's southwest and northeast corners.
         a0, b0 = cartesian_to_double(minx - ox, miny - oy, R)
         a1, b1 = cartesian_to_double(maxx - ox, maxy - oy, R)
         ncols = a1 - a0 + 1
         nrows = (b1 - b0) // 2 + 1
-        x, y = double_to_cartesian(a0, b0, R)  # centre of down-left grid hexagon H
+        x, y = double_to_cartesian(a0, b0, R)  # center of down-left grid hexagon H
 
         # Shift H if necessary
         if x - minx > R / 2:
             # Grid not covering left edge of rectangle,
-            # so shift H to its down-left neighbour and add a column
+            # so shift H to its southwest neighbour and add a column
             x -= 3 * R / 2
             y -= K * R
             a0 -= 1
@@ -218,7 +220,7 @@ def make_grid_from_bounds(
 
         if y > miny:
             # Grid not covering bottom edge of rectangle,
-            # so shift H to its down-neighbour and add a row
+            # so shift H to its south neighbour and add a row
             y -= 2 * K * R
             b0 -= 2
             nrows += 1
@@ -246,7 +248,7 @@ def make_grid_from_gdf(
     GeoDataFrame ``g``.
 
     Label the hexagons with double coordinate cell IDs (see :func:`make_grid`)
-    relative to a 0,0 hexagon centreed at point  ``(ox, oy)``.
+    relative to a 0,0 hexagon centered at point  ``(ox, oy)``.
 
     The grid will lie in the plane of ``g``'s CRS and will use its distance units,
     e.g. no units for no CRS, metres for the New Zealand Transverse Mercator (NZTM) CRS,
@@ -259,16 +261,6 @@ def make_grid_from_gdf(
 
     If ``clip``, then return the grid clipped to ``g``, which may contain fragments
     of hexagons.
-
-    EXAMPLE::
-
-        # Load some New Zealand features and set the CRS to NZTM
-        g = gpd.read_file(my_path).to_crs("epsg:2193")
-
-        # Make a hex grid of 250 metre circumradius and keep only the portion
-        # that intersects the features of ``g``
-        grid = make_grid(g, R=250)
-
     """
     grid = make_grid_from_bounds(*g.total_bounds, R=R, ox=ox, oy=oy, crs=g.crs)
     if intersect:
