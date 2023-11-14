@@ -79,7 +79,7 @@ Changes
 
 2.0.0, 2023-11-14
 -----------------
-- Refactored for simpler architecture, gapless grids, and a ~15x speed up in the main function ``grid_from_gdf()``.
+- Refactored for simpler architecture, gapless grids, and a ~15x speed up in the main function ``grid_from_gdf``.
 
 1.1.0, 2023-10-27
 -----------------
