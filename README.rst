@@ -20,7 +20,7 @@ The main non-feature of this library is
 
 - Making any other kind of grid, e.g. ones with pointy-top hexagons, squares, triangles, kisrhombilles, Penrose tiles...
 
-Here's an typical example.
+Here's a typical example.
 
 .. code-block:: python
 
@@ -34,7 +34,7 @@ Here's an typical example.
   grid = ghg.make_grid_from_gdf(nz, R=10_000)
 
   # Plot
-  base = nz.plot(color="black", figsize=(20, 20), aspect="equal")
+  base = nz.plot(color="black", figsize=(10, 10), aspect="equal")
   grid.plot(ax=base, color="white", edgecolor="red", alpha=0.5)
 
 
