@@ -125,6 +125,10 @@ def make_grid(
 
     NOTES:
 
+    - Here is a 3 x 4 grid with circumradius 1:
+
+        .. image:: ../3b4.png
+
     - The area of each hexagon is :math:`\frac{3 \sqrt(3)}{2} R^2`.
     - Making a 1000 x 1000 grid with this on my computer takes about 12 seconds.
 
