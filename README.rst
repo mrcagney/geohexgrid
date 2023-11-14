@@ -3,12 +3,12 @@ Geohexgrid
 A tiny Python 3.9+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 That's it.
 Not designed for making other kinds of grids or `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_.
-(For the latter, see `this Pangeo discussion <https://discourse.pangeo.io/t/discrete-global-grid-systems-dggs-use-with-pangeo/2274/48>`_.)
 
-Here a **hexagonal grid**, or **hex grid** for short, is a (possibly infinite) collection of regular hexagons in which exactly three hexagons meet at each vertex.
-The **circumradius** of a hex grid is the circumradius of any one of its hexagons, that is, the radius of a circle circumscribing any one of its hexagons.
-For more details, see `the Wikipedia article on hexagonal tilings <https://en.wikipedia.org/wiki/Hexagonal_tiling>`_.
-This library favours the word 'grid' over 'tiling', because 'grid' is used more often in geographic use cases, the main use cases of this library.
+Here a **hexagonal grid**, or **hex grid** for short, is a finite subset of a hexagonal tiling.
+A hexagonal tiling is a covering of the plane with regular hexagons in which exactly three hexagons meet at each vertex.
+(For more details, see `the Wikipedia article on hexagonal tilings <https://en.wikipedia.org/wiki/Hexagonal_tiling>`_.)
+The **circumradius** of a hex grid is the circumradius of any one of its hexagons, that is, the radius of a circle circumscribing any one of the hexagons.
+This library favours the word 'grid' over 'tiling', because 'grid' is used more often in geographic context, the main context of this library.
 
 The two main features of this library are
 
@@ -18,7 +18,7 @@ The two main features of this library are
 
 The main non-feature of this library is
 
-- Making any other kind of grid/tiling, e.g. ones with rotated (e.g. pointy-top) hexagons, squares,  triangles, kisrhombilles, Penrose tiles...
+- Making any other kind of grid, e.g. ones with pointy-top hexagons, squares, triangles, kisrhombilles, Penrose tiles...
 
 Here's an typical example.
 
@@ -45,8 +45,8 @@ Here's an typical example.
 
 But why hexagons?!
 Because `hexagons are the bestagons <https://www.youtube.com/watch?v=thOifuHs6eY>`_.
-More seriously, no one grid type works best for all geospatial scenarios.
-MRCagney, this library's funder, often works with isochrones, which favor simple convex equal area grids with equidistant neighbour cells, which leads to hex gids.
+More seriously, no one grid type works best for all geographic applications.
+MRCagney, this library's funder, often works with isochrones, which favour simple convex equal area grids with equidistant neighbour cells, that is, hex gids.
 
 
 Authors
