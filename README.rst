@@ -46,7 +46,7 @@ Here's a typical example.
 But why hexagons?!
 Because `hexagons are the bestagons <https://www.youtube.com/watch?v=thOifuHs6eY>`_.
 More seriously, no one grid type works best for all geographic applications.
-MRCagney, this library's funder, often works with isochrones, which favour simple convex equal area grids with equidistant neighbour cells, that is, hex gids.
+MRCagney, this library's funder, often works with isochrones, which favour simple convex equal area grids with equidistant neighbour cells, that is, hex grids.
 
 
 Authors
