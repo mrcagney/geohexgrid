@@ -144,7 +144,7 @@ def make_grid(
 
        v4  v3
 
-    v5        v6
+    v5        v2
 
        v0  v1
 
