@@ -1,6 +1,6 @@
 [project]
 name = "geohexgrid"
-version = "2.0.0"
+version = "2.1.0"
 description = "A Python library for making geographic flat-top hexagon grids like QGIS's `create grid` function"
 readme = "README.rst"
 requires-python = ">=3.11,<4"
@@ -34,6 +34,6 @@ dev-dependencies = [
 
 [tool.ruff]
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
-select = ["E", "F"]
-ignore = ["F401", "F403"]
+lint.select = ["E", "F"]
+lint.ignore = ["E501", "F401", "F403"]
 exclude = ["*.ipynb"]

@@ -167,7 +167,6 @@ def make_grid(
     return gpd.GeoDataFrame({"cell_id": cell_id, "geometry": geometry})
 
 
-# TODO: debug this
 def make_grid_from_bounds(
     minx: float,
     miny: float,
@@ -193,36 +192,32 @@ def make_grid_from_bounds(
     """
     if ox is None or oy is None:
         # Cover the rectangle with a grid whose bottom-left cell lies at minx, miny.
-        # A column of i such cells has covering height >= (2 * i - 1) * r,
-        # where r = K * R, so
+        # A column of i such cells has covering height >= (2*i - 1)*r,
+        # where r = K*R, so
         nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
-        # A row of j such cells has covering width >= (3 * j - 2) * R / 2, so
+        # A row of j such cells has covering width >= (3*j - 2)*R/2, so
         ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
         grid = make_grid(nrows=nrows, ncols=ncols, x0=minx, y0=miny, R=R)
     else:
-        # Cover the rectangle with a grid whose (possibly absent) origin hexagon is
-        # centered at ox, oy.
-        # To that end, first get the double coordinates of the hexagons covering the
-        # rectangle's southwest and northeast corners.
-
-        # Shift to calculation to 0, 0 origin
+        # First translate the calculation to a hex grid with origin hexagon at (0, 0).
         minx -= ox
         miny -= oy
         maxx -= ox
         maxy -= oy
+        # Then cover the rectangle with a hex grid.
+        # To that end, start by getting the double coordinates of the hexagons covering
+        # the rectangle's southwest and northeast corners.
         a0, b0 = cartesian_to_double(minx, miny, R)
         a1, b1 = cartesian_to_double(maxx, maxy, R)
         ncols = a1 - a0 + 1
         nrows = (b1 - b0) // 2 + 1
-        logger.info(f"Initially nrows={nrows}, ncols={ncols}")
         # center of southwest hexagon H0
         x0, y0 = double_to_cartesian(a0, b0, R)
         # center of northwest hexagon H1
         x1, y1 = double_to_cartesian(a1, b1, R)
 
-        # Adjust H0, H1, nrows, rcols as necessary
+        # Adjust H0, H1, nrows, rcols as necessary to handle four (literal) edge cases
         if minx < x0 - R / 2:
-            logger.debug("Grid not covering left edge of rectangle")
             # Grid not covering left edge of rectangle,
             # so shift H0 to its southwest neighbor, add a column,
             # and update H1 center
@@ -233,16 +228,14 @@ def make_grid_from_bounds(
             if ncols % 2 == 0:
                 y1 -= K * R
             ncols += 1
-        if miny < y0:
-            logger.debug("Grid not covering bottom edge of rectangle")
+        if miny < y0 and ncols > 1:
             # Grid not covering bottom edge of rectangle,
             # so shift H0 to its south neighbor and add a row.
-            # H1 center remains unchanged after row add
+            # H1 center remains unchanged after row addition.
             y0 -= 2 * K * R
             b0 -= 2
             nrows += 1
         if maxx > x1 + R / 2:
-            logger.debug("Grid not covering right edge of rectangle")
             # Grid not covering right edge of rectangle,
             # so add a column and update H1 center
             x1 += 3 * R / 2
@@ -251,13 +244,13 @@ def make_grid_from_bounds(
             else:
                 y1 += K * R
             ncols += 1
-        if maxy > y1:
-            logger.debug("Grid not covering top edge of rectangle")
+        if maxy > y1 and ncols > 1:
             # Grid not covering top edge of rectangle,
             # so add a row.
-            # No need to update H1 center because not used anymore
+            # No need to update H1 center because not used anymore.
             nrows += 1
 
+        # Translate grid labels to those relative to an origin hexagon at (ox, oy).
         grid = make_grid(
             nrows=nrows, ncols=ncols, x0=x0 + ox, y0=y0 + oy, R=R, a0=a0, b0=b0
         )
@@ -281,7 +274,8 @@ def make_grid_from_gdf(
     GeoDataFrame ``g``.
 
     Label the hexagons with double coordinate cell IDs (see :func:`make_grid`)
-    relative to a 0,0 hexagon centered at point  ``(ox, oy)``.
+    relative to a 0,0 hexagon centered at point  ``(ox, oy)``, which does not necessarily
+    appear in the grid.
 
     The grid will lie in the plane of ``g``'s CRS and will use its distance units,
     e.g. no units for no CRS, metres for the New Zealand Transverse Mercator (NZTM) CRS,

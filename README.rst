@@ -56,7 +56,7 @@ Authors
 
 Installation
 ============
-Install from PyPI, e.g. via ``poetry add geohexgrid``.
+Install from PyPI, e.g. via ``uv add geohexgrid``.
 
 
 Examples
@@ -76,6 +76,11 @@ Notes
 
 Changes
 =======
+
+2.1.0, 2024-09-26
+-----------------
+- Bugfixed ``make_grid_from_bounds`` in response to `Issue 1 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
+- Switched from Poetry to UV for project management.
 
 2.0.0, 2023-11-14
 -----------------
