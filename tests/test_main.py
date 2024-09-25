@@ -57,7 +57,7 @@ def test_make_grid():
     # Cell areas should be correct
     assert np.allclose(grid.area, 3 * np.sqrt(3) * R**2 / 2)
     # Grid should have no gaps
-    assert grid.unary_union.boundary.is_ring
+    assert grid.union_all().boundary.is_ring
 
 
 def test_make_grid_from_bounds():
