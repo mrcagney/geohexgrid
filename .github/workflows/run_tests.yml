@@ -1,0 +1,36 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"  # Specify the version of Python you need
+
+      # Install UV
+      - name: Install UV
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      # Sync the environment with UV (will create and use .venv)
+      - name: Sync project environment with UV
+        run: |
+          uv sync
+
+      # Run the tests using UV
+      - name: Run tests
+        run: |
+          uv run pytest
