@@ -1,7 +1,7 @@
 Geohexgrid
 **********
-.. image:: https://github.com/araichev/geohexgrid/actions/workflows/run_tests.yml/badge.svg
-   :target: https://github.com/araichev/geohexgrid/actions/workflows/run_tests.yml
+.. image:: https://github.com/araichev/geohexgrid/actions/workflows/test.yml/badge.svg
+   :target: https://github.com/araichev/geohexgrid/actions/workflows/test.yml
 
 A tiny Python 3.10+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 That's it.
