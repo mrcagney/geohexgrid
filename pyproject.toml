@@ -16,9 +16,6 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/mrcagney/geohexgrid"
 
-[tool.setuptools]
-packages = ["geohexgrid"]
-
 [tool.uv]
 dev-dependencies = [
     "jupyter>=1.0.0",
@@ -37,3 +34,10 @@ dev-dependencies = [
 lint.select = ["E", "F"]
 lint.ignore = ["E501", "F401", "F403"]
 exclude = ["*.ipynb"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.setuptools]
+packages = ["geohexgrid"]
