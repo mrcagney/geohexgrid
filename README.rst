@@ -3,7 +3,7 @@ Geohexgrid
 .. image:: https://github.com/araichev/geohexgrid/actions/workflows/run_tests.yml/badge.svg
    :target: https://github.com/araichev/geohexgrid/actions/workflows/run_tests.yml
 
-A tiny Python 3.9+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
+A tiny Python 3.10+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 That's it.
 Not designed for making other kinds of grids or `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_.
 
@@ -84,6 +84,7 @@ Changes
 -----------------
 - Bugfixed ``make_grid_from_bounds`` in response to `Issue 1 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
 - Switched from Poetry to UV for project management.
+- Bumped Python version up to 3.10+.
 
 2.0.0, 2023-11-14
 -----------------
