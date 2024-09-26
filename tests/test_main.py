@@ -57,7 +57,7 @@ def test_make_grid():
     # Cell areas should be correct
     assert np.allclose(grid.area, 3 * np.sqrt(3) * R**2 / 2)
     # Grid should have no gaps
-    assert grid.unary_union.boundary.is_ring
+    assert grid.union_all().boundary.is_ring
 
 
 def test_make_grid_from_bounds():
@@ -81,7 +81,7 @@ def test_make_grid_from_bounds():
         "3,3",
     }
     # Grid should cover rectangle
-    grid.dissolve().contains(rect)
+    grid.union_all().contains(rect.union_all())
 
     # Two grids with the same origin should have identical cells where they overlap
     rect1 = gpd.GeoDataFrame(geometry=[sg.Polygon([(-2, 1), (3, 1), (3, 5), (-2, 5)])])
@@ -98,6 +98,53 @@ def test_make_grid_from_bounds():
     )
     assert g1.geom_equals_exact(g2, tolerance=10e-15).all()
 
+    # Case where one hexagon will just cover
+    R = 1
+    r = ghg.K * R
+    rect = gpd.GeoDataFrame(
+        geometry=[sg.Polygon([(-R / 2, -r), (R / 2, -r), (R / 2, r), (-R / 2, r)])]
+    )
+    grid = ghg.make_grid_from_bounds(*rect.total_bounds, R=R)
+    assert grid.union_all().contains(rect.union_all())
+
+    # Same scenario but with origin hexagon shifted to southwest neighbor of covering
+    # hexagon
+    grid2 = ghg.make_grid_from_bounds(*rect.total_bounds, R=R, ox=-3 * R / 2, oy=-r)
+    assert grid2.union_all() == grid.union_all()
+    assert grid2.cell_id.tolist() == ["1,1"]
+
+    # Case where all edges aren't initially covered
+    R = 1
+    r = ghg.K * R
+    rect = gpd.GeoDataFrame(
+        geometry=[
+            sg.Polygon(
+                [
+                    (-0.6 * R, -0.1),
+                    (2.2 * R, -0.1),
+                    (2.2 * R, 3.2 * r),
+                    (-0.6 * R, 3.2 * r),
+                ]
+            )
+        ]
+    )
+    grid = ghg.make_grid_from_bounds(*rect.total_bounds, R=R)
+    assert grid.union_all().contains(rect.union_all())
+
+    # More edge cases
+    rect = gpd.GeoDataFrame(geometry=[sg.Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])])
+    for grid in [
+        # Right edge of rectangle not initially covered
+        ghg.make_grid_from_bounds(*rect.total_bounds, R=0.27, ox=0, oy=0),
+        # Top edge not
+        ghg.make_grid_from_bounds(*rect.total_bounds, R=0.2, ox=0, oy=0),
+        # Bottom edge not
+        ghg.make_grid_from_bounds(*rect.total_bounds, R=0.5, ox=0, oy=0.1),
+        # Left edge not
+        ghg.make_grid_from_bounds(*rect.total_bounds, R=1, ox=0.6, oy=0),
+    ]:
+        assert grid.union_all().contains(rect.union_all())
+
 
 def test_make_grid_from_gdf():
     shape = gpd.GeoDataFrame(geometry=[sg.Polygon([(1, -1), (3, 1), (0, 3)])])
@@ -113,6 +160,16 @@ def test_make_grid_from_gdf():
         "2,2",
         "0,4",
     }
+
+    # Grids with growing circumradius covering horseshoe
+    g = gpd.GeoDataFrame(
+        {"geometry": [sg.LineString([(0, 0), (1, 0), (1, 1), (0, 1)])]}
+    )
+    for i in range(0, 20):
+        R = (i + 1) / 10
+        r = ghg.K * R
+        grid = ghg.make_grid_from_gdf(g, R=R, ox=-3 * R / 2 - 0.1, oy=-r - 0.1)
+        assert grid.union_all().contains(g.union_all())
 
     shapes = gpd.read_file(DATA_DIR / "shapes.geojson").to_crs("epsg:2193")
     R = 900
