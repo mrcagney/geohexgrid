@@ -82,7 +82,7 @@ Changes
 
 2.1.0, 2024-09-26
 -----------------
-- Bugfixed ``make_grid_from_bounds`` in response to `Issue 1 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
+- Bugfixed ``make_grid_from_bounds`` in response to `Issue 2 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
 - Switched from Poetry to UV for project management.
 - Bumped Python version up to 3.10+.
 
