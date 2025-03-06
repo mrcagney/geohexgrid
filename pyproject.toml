@@ -1,6 +1,6 @@
 [project]
 name = "geohexgrid"
-version = "2.1.0"
+version = "2.1.1"
 description = "A Python library for making geographic flat-top hexagon grids like QGIS's `create grid` function"
 readme = "README.rst"
 requires-python = ">=3.10"
@@ -26,7 +26,7 @@ dev-dependencies = [
     "ruff>=0.1.3",
     "pyogrio>=0.7.2",
     "matplotlib>=3.8.1",
-    "loguru>=0.7.2,<0.8.0",
+    "loguru>=0.7.2",
 ]
 
 [tool.ruff]
