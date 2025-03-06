@@ -80,6 +80,11 @@ Notes
 Changes
 =======
 
+2.1.1, 2025-03-07
+-----------------
+- Removed unused Loguru import in ``main.py``.
+  This was preventing users from installing Geohexgrid, because Loguru is only a development dependency.
+
 2.1.0, 2024-09-26
 -----------------
 - Bugfixed ``make_grid_from_bounds`` in response to `Issue 2 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
