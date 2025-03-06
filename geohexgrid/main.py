@@ -4,7 +4,6 @@ import math
 import numpy as np
 import geopandas as gpd
 import shapely.geometry as sg
-from loguru import logger
 
 
 #: Recurring constants.
