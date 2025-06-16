@@ -1,6 +1,9 @@
 Geohexgrid
 **********
-A tiny Python 3.9+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
+.. image:: https://github.com/mrcagney/geohexgrid/actions/workflows/test.yml/badge.svg
+   :target: https://github.com/mrcagney/geohexgrid/actions/workflows/test.yml
+
+A tiny Python 3.10+ library for making geographic flat-top hexagonal grids like QGIS's `create grid function <https://docs.qgis.org/3.22/en/docs/user_manual/processing_algs/qgis/vectorcreation.html?highlight=create%20grid#create-grid>`_.
 That's it.
 Not designed for making other kinds of grids or `discrete global grid systems <https://en.wikipedia.org/wiki/Discrete_global_grid>`_.
 
@@ -56,12 +59,12 @@ Authors
 
 Installation
 ============
-Install from PyPI, e.g. via ``poetry add geohexgrid``.
+Install from PyPI, e.g. via ``uv add geohexgrid``.
 
 
 Examples
 =========
-See the Jupyter notebook at ``notebooks/examples.ipynb``.
+See the Marimo notebook at ``notebooks/examples.py``.
 
 
 Notes
@@ -76,6 +79,24 @@ Notes
 
 Changes
 =======
+
+2.1.2, 2025-06-16
+-----------------
+- Fixed a docstring typo.
+- Changed pre-commit hooks.
+- Replaced Jupyter with Marimo.
+- Updated dependencies.
+
+2.1.1, 2025-03-07
+-----------------
+- Removed unused Loguru import in ``main.py``.
+  This was preventing users from installing Geohexgrid, because Loguru is only a development dependency.
+
+2.1.0, 2024-09-26
+-----------------
+- Bugfixed ``make_grid_from_bounds`` in response to `Issue 2 <https://github.com/mrcagney/geohexgrid/issues/2>`_.
+- Switched from Poetry to UV for project management.
+- Bumped Python version up to 3.10+.
 
 2.0.0, 2023-11-14
 -----------------

@@ -82,7 +82,7 @@ def make_grid_points(nrows, ncols, R: float = 1, x0: float = 0, y0: float = 0):
     Make the vertices and centers of a flat-top hexagon grid of circumradius ``R``
     with ``nrows`` rows, ``ncols`` columns, and bottom left hexagon centerd at
     ``(x0, y0)``.
-    A row is a left-to-right northeast-neighbour-southeast-neighbour zig-zag of
+    A row is a left-to-right northeast-neighbor-southeast-neighbor zig-zag of
     hexagons and the next row is stacked on top of the previous row.
     """
     r = K * R
@@ -105,17 +105,17 @@ def make_grid(
     a0: int = 0,
     b0: int = 0,
 ) -> gpd.GeoDataFrame:
-    """
+    r"""
     Make a flat-top hexagon grid of circumradius ``R`` with ``nrows`` rows,
     ``ncols`` columns, and bottom left hexagon centered at ``(x0, y0)``.
-    A row is a left-to-right northeast-neighbour-southeast-neighbour zig-zag of
+    A row is a left-to-right northeast-neighbor-southeast-neighbor zig-zag of
     hexagons and the next row is stacked on top of the previous row.
 
     Label the bottom left hexagon with cell ID ``f'{a0},{b0}'``, where ``a0`` and
     ``b0`` are integers with an even sum.
     Label the remaining hexagons with *double coordinates* recursively as follows.
-    Given a hexagon with ID 'a,b', label its northern neighbour with ID 'a,b+2',
-    its northeast neighbour with ID 'a+1,b+1', and its southeast neighbour with ID
+    Given a hexagon with ID 'a,b', label its northern neighbor with ID 'a,b+2',
+    its northeast neighbor with ID 'a+1,b+1', and its southeast neighbor with ID
     'a+1,b-1'.
     For example, if a0 = b0 = 0, then first two rows of cell IDs are
 
@@ -144,7 +144,7 @@ def make_grid(
 
        v4  v3
 
-    v5        v6
+    v5        v2
 
        v0  v1
 
@@ -191,42 +191,67 @@ def make_grid_from_bounds(
     """
     if ox is None or oy is None:
         # Cover the rectangle with a grid whose bottom-left cell lies at minx, miny.
-        # A column of i such cells has covering height >= (2 * i - 1) * r,
-        # where r = K * R, so
+        # A column of i such cells has covering height >= (2*i - 1)*r,
+        # where r = K*R, so
         nrows = math.ceil((maxy - miny) / (2 * K * R) + 1 / 2)
-        # A row of j such cells has covering width >= (3 * j - 2) * R / 2, so
+        # A row of j such cells has covering width >= (3*j - 2)*R/2, so
         ncols = math.ceil(2 * (maxx - minx) / (3 * R) + 2 / 3)
         grid = make_grid(nrows=nrows, ncols=ncols, x0=minx, y0=miny, R=R)
     else:
-        # Cover the rectangle with a grid whose (possibly absent) origin hexagon is
-        # centered at ox, oy.
-        # To that end, first get the double coordinates of the hexagons covering the
-        # rectangle's southwest and northeast corners.
-        a0, b0 = cartesian_to_double(minx - ox, miny - oy, R)
-        a1, b1 = cartesian_to_double(maxx - ox, maxy - oy, R)
+        # First translate the calculation to a hex grid with origin hexagon at (0, 0).
+        minx -= ox
+        miny -= oy
+        maxx -= ox
+        maxy -= oy
+        # Then cover the rectangle with a hex grid.
+        # To that end, start by getting the double coordinates of the hexagons covering
+        # the rectangle's southwest and northeast corners.
+        a0, b0 = cartesian_to_double(minx, miny, R)
+        a1, b1 = cartesian_to_double(maxx, maxy, R)
         ncols = a1 - a0 + 1
         nrows = (b1 - b0) // 2 + 1
-        x, y = double_to_cartesian(a0, b0, R)  # center of down-left grid hexagon H
+        # center of southwest hexagon H0
+        x0, y0 = double_to_cartesian(a0, b0, R)
+        # center of northwest hexagon H1
+        x1, y1 = double_to_cartesian(a1, b1, R)
 
-        # Shift H if necessary
-        if x - minx > R / 2:
+        # Adjust H0, H1, nrows, rcols as necessary to handle four (literal) edge cases
+        if minx < x0 - R / 2:
             # Grid not covering left edge of rectangle,
-            # so shift H to its southwest neighbour and add a column
-            x -= 3 * R / 2
-            y -= K * R
+            # so shift H0 to its southwest neighbor, add a column,
+            # and update H1 center
+            x0 -= 3 * R / 2
+            y0 -= K * R
             a0 -= 1
             b0 -= 1
+            if ncols % 2 == 0:
+                y1 -= K * R
             ncols += 1
-
-        if y > miny:
+        if miny < y0 and ncols > 1:
             # Grid not covering bottom edge of rectangle,
-            # so shift H to its south neighbour and add a row
-            y -= 2 * K * R
+            # so shift H0 to its south neighbor and add a row.
+            # H1 center remains unchanged after row addition.
+            y0 -= 2 * K * R
             b0 -= 2
             nrows += 1
+        if maxx > x1 + R / 2:
+            # Grid not covering right edge of rectangle,
+            # so add a column and update H1 center
+            x1 += 3 * R / 2
+            if ncols % 2 == 0:
+                y1 -= K * R
+            else:
+                y1 += K * R
+            ncols += 1
+        if maxy > y1 and ncols > 1:
+            # Grid not covering top edge of rectangle,
+            # so add a row.
+            # No need to update H1 center because not used anymore.
+            nrows += 1
 
+        # Translate grid labels to those relative to an origin hexagon at (ox, oy).
         grid = make_grid(
-            nrows=nrows, ncols=ncols, x0=ox + x, y0=oy + y, R=R, a0=a0, b0=b0
+            nrows=nrows, ncols=ncols, x0=x0 + ox, y0=y0 + oy, R=R, a0=a0, b0=b0
         )
 
     grid.crs = crs
@@ -248,7 +273,8 @@ def make_grid_from_gdf(
     GeoDataFrame ``g``.
 
     Label the hexagons with double coordinate cell IDs (see :func:`make_grid`)
-    relative to a 0,0 hexagon centered at point  ``(ox, oy)``.
+    relative to a 0,0 hexagon centered at point  ``(ox, oy)``, which does not necessarily
+    appear in the grid.
 
     The grid will lie in the plane of ``g``'s CRS and will use its distance units,
     e.g. no units for no CRS, metres for the New Zealand Transverse Mercator (NZTM) CRS,
