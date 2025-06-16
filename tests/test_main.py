@@ -162,9 +162,7 @@ def test_make_grid_from_gdf():
     }
 
     # Grids with growing circumradius covering horseshoe
-    g = gpd.GeoDataFrame(
-        {"geometry": [sg.LineString([(0, 0), (1, 0), (1, 1), (0, 1)])]}
-    )
+    g = gpd.GeoDataFrame({"geometry": [sg.LineString([(0, 0), (1, 0), (1, 1), (0, 1)])]})
     for i in range(0, 20):
         R = (i + 1) / 10
         r = ghg.K * R
