@@ -27,6 +27,7 @@ dev-dependencies = [
 ]
 
 [tool.ruff]
+line-length = 90
 # Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 lint.select = ["E", "F"]
 lint.ignore = ["E501", "F401", "F403"]
