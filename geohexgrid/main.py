@@ -105,7 +105,7 @@ def make_grid(
     a0: int = 0,
     b0: int = 0,
 ) -> gpd.GeoDataFrame:
-    """
+    r"""
     Make a flat-top hexagon grid of circumradius ``R`` with ``nrows`` rows,
     ``ncols`` columns, and bottom left hexagon centered at ``(x0, y0)``.
     A row is a left-to-right northeast-neighbor-southeast-neighbor zig-zag of

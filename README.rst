@@ -64,7 +64,7 @@ Install from PyPI, e.g. via ``uv add geohexgrid``.
 
 Examples
 =========
-See the Jupyter notebook at ``notebooks/examples.ipynb``.
+See the Marimo notebook at ``notebooks/examples.py``.
 
 
 Notes
@@ -79,6 +79,13 @@ Notes
 
 Changes
 =======
+
+2.1.2, 2025-06-16
+-----------------
+- Fixed a docstring typo.
+- Changed pre-commit hooks.
+- Replaced Jupyter with Marimo.
+- Updated dependencies.
 
 2.1.1, 2025-03-07
 -----------------
