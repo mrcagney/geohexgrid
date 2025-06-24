@@ -1,10 +1,17 @@
 from __future__ import annotations
+from typing import Literal, Callable
 import math
+import functools
 
 import numpy as np
 import geopandas as gpd
 import shapely.geometry as sg
+import pandas as pd
+import multiprocessing as mp
 
+
+#: For multiprocessing
+NUM_CPUS = mp.cpu_count()
 
 #: Recurring constants.
 SQRT3 = np.sqrt(3)
@@ -258,14 +265,52 @@ def make_grid_from_bounds(
     return grid
 
 
+def mp_apply(
+    my_func: Callable,  # Using 'func' conflicts with Pandas pipe() method
+    df: pd.DataFrame | gpd.GeoDataFrame,
+    max_batch_size: int = 5_000,
+    num_workers=NUM_CPUS,
+) -> pd.DataFrame | gpd.GeoDataFrame:
+    """
+    Use the multiprocessing module to apply the given pickleable function to the given
+    (Geo)DataFrame by splitting it into batches of size ``max_batch_size`` and
+    operating on them with ``num_workers`` parallel processes.
+    Return a concatenation of the results of batches.
+
+    If ``df`` has at most ``max_batch_size`` rows, then apply ``my_func`` directly
+    without batching and parallel processing.
+
+    This function is especially useful for spatial operations.
+
+    EXAMPLES::
+
+        >>> import functools
+        >>> import geopandas as gpd
+        >>> # load `sites` and `zones` GeoDataFrames and spatially join the former to the latter
+        >>> func = functools.partial(gpd.sjoin, right_df=zones)
+        >>> mp_apply(func, sites)
+
+    """
+    n = df.shape[0]
+    if n <= max_batch_size:
+        return my_func(df)
+
+    num_batches = math.ceil(n / max_batch_size)
+    frames = []
+    with mp.Pool(num_workers) as pool:
+        for r in pool.map(my_func, np.array_split(df, num_batches)):
+            frames.append(r)
+
+    return pd.concat(frames, ignore_index=True)
+
+
 def make_grid_from_gdf(
     g: gpd.GeoDataFrame,
     R: float,
     ox: float = 0,
     oy: float = 0,
-    *,
-    intersect: bool = True,
-    clip: bool = False,
+    trim_mode: None | Literal["intersect", "clip"] = "intersect",
+    max_batch_size: int = 5_000,
 ) -> gpd.GeoDataFrame:
     """
     Return flat-top hexagon grid of circumradius ``R`` with m rows and n columns,
@@ -280,22 +325,29 @@ def make_grid_from_gdf(
     e.g. no units for no CRS, metres for the New Zealand Transverse Mercator (NZTM) CRS,
     and decimal degrees for the WGS84 CRS.
 
-    If ``intersect``, then return only the hexagons that intersect ``g``.
-    This option computes a spatial join, which can slow things down if the number of
-    hexagons is large and the feature set detailed.
-    In that case, install pyogrio for a speed up or simplify the features beforehand.
-
-    If ``clip``, then return the grid clipped to ``g``, which may contain fragments
-    of hexagons.
+    If ``trim_mode == 'intersect'``, then return only the hexagons that intersect ``g``.
+    This performs a spatial join under the hood.
+    If ``trim_mode == 'clip'``, then return the grid clipped to ``g``,
+    which may contain fragments of hexagons.
+    This performs a spatial clip under the hood.
+    The spatial operations above will be sped up by parallel processing
+    (via :func:`mp_apply`) when the grid's number of cell's is greater than
+    ``max_batch_size``.
     """
     grid = make_grid_from_bounds(*g.total_bounds, R=R, ox=ox, oy=oy, crs=g.crs)
-    if intersect:
-        grid = (
-            grid.sjoin(g)
-            .drop_duplicates(subset=["cell_id"])
-            .filter(["cell_id", "geometry"])
-        )
-    if clip:
-        grid = grid.clip(g)
+    if trim_mode == "intersect":
+        if len(grid) <= max_batch_size:
+            h = grid.sjoin(g)
+        else:
+            func = functools.partial(gpd.sjoin, right_df=g)
+            h = mp_apply(func, grid, max_batch_size=max_batch_size)
+
+        grid = h.drop_duplicates(subset=["cell_id"]).filter(["cell_id", "geometry"])
+    elif trim_mode == "clip":
+        if len(grid) <= max_batch_size:
+            grid = grid.clip(g)
+        else:
+            func = functools.partial(gpd.clip, mask=g)
+            grid = mp_apply(func, grid, max_batch_size=max_batch_size)
 
     return grid

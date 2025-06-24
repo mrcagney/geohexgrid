@@ -80,6 +80,11 @@ Notes
 Changes
 =======
 
+3.0.0, 2025-06-24
+-----------------
+- Breaking change: changed signature of ``main.make_grid_from_gdf`` with ``trim_mode`` option.
+- Sped up with parallel processing the spatial operations of ``main.make_grid_from_gdf`` when using a trim mode.
+
 2.1.2, 2025-06-16
 -----------------
 - Fixed a docstring typo.

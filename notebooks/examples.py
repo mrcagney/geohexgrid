@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.13.15"
+__generated_with = "0.14.7"
 app = marimo.App(width="medium")
 
 
@@ -134,7 +134,7 @@ def _(ghg, gpd, sg):
     print(grid_2)
     _base = shape.plot(color="gray", aspect="equal")
     grid_2.plot(ax=_base, color="white", edgecolor="red", alpha=0.5)
-    grid2_1 = ghg.make_grid_from_gdf(shape, R=1, clip=True)
+    grid2_1 = ghg.make_grid_from_gdf(shape, R=1, trim_mode="clip")
     print(grid2_1)
     _base2 = shape.plot(color="gray", aspect="equal")
     grid2_1.plot(ax=_base2, color="white", edgecolor="red", alpha=0.5)
@@ -150,10 +150,9 @@ def _(DATA_DIR, NZTM, ghg, gpd):
     _base = shapes.plot(color="gray", aspect="equal")
     grid_3.plot(ax=_base, color="white", edgecolor="red", alpha=0.5)
     _base2 = shapes.plot(color="gray", aspect="equal")
-    grid2_2 = ghg.make_grid_from_gdf(shapes, R=_R, clip=True)
+    grid2_2 = ghg.make_grid_from_gdf(shapes, R=_R, trim_mode="clip")
     assert grid_3.shape[0] == grid2_2.shape[0]
     grid2_2.plot(ax=_base2, color="white", edgecolor="red", alpha=0.5)
-
     return
 
 
@@ -163,8 +162,13 @@ def _(DATA_DIR, ghg, gpd):
     print(nz.crs)
     _base = nz.plot(color="gray", aspect="equal", figsize=(10, 10))
     grid_4 = ghg.make_grid_from_gdf(nz, R=10_000)  # 10 km inradius grid
+    print(len(grid_4))
     grid_4.plot(ax=_base, color="white", edgecolor="red", alpha=0.5)
+    return
 
+
+@app.cell
+def _():
     return
 
 
