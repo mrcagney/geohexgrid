@@ -148,7 +148,7 @@ def test_make_grid_from_bounds():
 
 def test_make_grid_from_gdf():
     shape = gpd.GeoDataFrame(geometry=[sg.Polygon([(1, -1), (3, 1), (0, 3)])])
-    grid = ghg.make_grid_from_gdf(shape, R=1, ox=0, oy=0, intersect=True)
+    grid = ghg.make_grid_from_gdf(shape, R=1, ox=0, oy=0, trim_mode="intersect")
     assert set(grid.columns) == {"cell_id", "geometry"}
     assert set(grid["cell_id"]) == {
         "1,-1",
@@ -171,18 +171,19 @@ def test_make_grid_from_gdf():
 
     shapes = gpd.read_file(DATA_DIR / "shapes.geojson").to_crs("epsg:2193")
     R = 900
-    grid1 = ghg.make_grid_from_gdf(shapes, R=R, intersect=False)
+    grid1 = ghg.make_grid_from_gdf(shapes, R=R, trim_mode="intersect")
     # CRS should be correct
     assert grid1.crs == shapes.crs
     # Grid should cover shapes
     grid1.dissolve().contains(shapes.dissolve())
 
-    grid2 = ghg.make_grid_from_gdf(shapes, R=R, intersect=True)
+    # Force multiprocessing with small batch size
+    grid2 = ghg.make_grid_from_gdf(shapes, R=R, trim_mode="intersect", max_batch_size=1)
     # Intersection should produce fewer cells
     assert grid2.shape[0] <= grid1.shape[0]
     # Intersection should reduce area
     assert shapes.area.sum() <= grid2.area.sum() <= grid1.area.sum()
 
-    # Clipping should produce correct area
-    grid3 = ghg.make_grid_from_gdf(shapes, R=R, clip=True)
+    # Clipping should produce correct area; force multiprocessing with small batch size
+    grid3 = ghg.make_grid_from_gdf(shapes, R=R, trim_mode="clip", max_batch_size=1)
     assert np.allclose(grid3.area.sum(), shapes.area.sum())
