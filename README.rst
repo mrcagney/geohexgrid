@@ -11,7 +11,7 @@ Here a **hexagonal grid**, or **hex grid** for short, is a finite subset of a he
 A hexagonal tiling is a covering of the plane with regular hexagons in which exactly three hexagons meet at each vertex.
 (For more details, see `the Wikipedia article on hexagonal tilings <https://en.wikipedia.org/wiki/Hexagonal_tiling>`_.)
 The **circumradius** of a hex grid is the circumradius of any one of its hexagons, that is, the radius of a circle circumscribing any one of the hexagons.
-This library favours the word 'grid' over 'tiling', because 'grid' is used more often in geographic context, the main context of this library.
+This library favors the word 'grid' over 'tiling', because 'grid' is used more often in geographic context, the main context of this library.
 
 The two main features of this library are
 
@@ -49,7 +49,7 @@ Here's a typical example.
 But why hexagons?!
 Because `hexagons are the bestagons <https://www.youtube.com/watch?v=thOifuHs6eY>`_.
 More seriously, no one grid type works best for all geographic applications.
-MRCagney, this library's funder, often works with isochrones, which favour simple convex equal area grids with equidistant neighbour cells, that is, hex grids.
+MRCagney, this library's funder, often works with isochrones, which favor simple convex equal area grids with equidistant neighbor cells, that is, hex grids.
 
 
 Authors
